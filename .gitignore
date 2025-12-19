@@ -1,0 +1,31 @@
+# Build artifacts
+*.exe
+*.o
+*.a
+*.so
+*.dll
+*.lib
+
+# IDE and editor files
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.log
+
+# Project specific
+build/
+bin/
+obj/
+
+# Assets (if generated)
+ref/
+
+CHANGELOG.md
