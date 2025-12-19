@@ -5,20 +5,10 @@
 
 #include "raylib.h"
 #include "ball.h"
-#include <math.h>
-
 #include "paddle.h"
+#include "utils.h"
 
-#ifndef PI
-#define PI 3.14159265358979323846f
-#endif
-
-static void UpdateTimer(float* timer, float deltaTime) {
-    if (*timer > 0) {
-        *timer -= deltaTime;
-        if (*timer < 0) *timer = 0;
-    }
-}
+#include <math.h>
 
 static void CapVelocity(Vector2* velocity, float maxVelocity) {
     float speed = sqrt(velocity->x * velocity->x + velocity->y * velocity->y);
@@ -57,6 +47,22 @@ void UpdateBall(Ball* ball, float deltaTime, int screenWidth, int screenHeight, 
         ball->velocity.x *= 0.8f;
         ball->velocity.y *= 0.8f;
     }
+
+    // TODO: Fix lag effect not working properly
+    // TODO: Fix slow effect not working properly
+    // PROBLEM: Lag and slow effect staying even after timer ends
+    /* SOLUTION: 
+    if (ball->TIMERHERE <= 0) { // when timer ends
+        set ball->velocity to normal speed, (from where it left of) 
+    }
+
+    and 
+
+    if(ball->TIMERHERE > 0) { // when timer is active
+        use updatetimer to decrease timer
+        set ball->velocity to no speed or slowed speed.
+    }
+    */
 
     // Apply curve effect
     ball->velocity.x += ball->curveAngle * deltaTime;

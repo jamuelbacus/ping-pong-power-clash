@@ -5,6 +5,7 @@
 #include "ball.h"
 #include "paddle.h"
 #include "character.h"
+#include "utils.h"
 
 static const int WINDOW_WIDTH = 960;
 static const int WINDOW_HEIGHT = 540;

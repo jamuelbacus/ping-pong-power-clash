@@ -16,9 +16,6 @@ void InitGame(Game* game) {
 
 static void resetBall(Game* game) {
     float velX = (game->ball.velocity.x > 0) ? BALL_BASE_VELOCITY_X : -BALL_BASE_VELOCITY_X;
-    InitBall(&game->ball, BALL_POSITION.x, BALL_POSITION.y, BALL_SIZE, 
-             velX, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    game->ball.speedFactor = 1.0f;
 }
 
 static void updateGamePlay(Game* game, float deltaTime) {
