@@ -205,7 +205,9 @@ of using them), `skill1Timer`, `skill2Timer`, `ultimateTimer`, `skill1Active`, `
 `smashShotReady`, `piercingShot`, `widthMultiplier`, `deadeye`.
 
 **Also unused** — `BALL_SPEED_INCREMENT` (`include/ball.h`, 20 px/s): defined but never
-referenced. The ball's size/feel is effect-driven instead.
+referenced. Ball size is not effect-driven today (nothing pushes `STAT_BALL_SIZE`); baseline
+rally speed growth comes from the per-bounce `speedFactor *= 1.005` creep, while live
+speed/bend changes come from `STAT_BALL_SPEED` / `STAT_BALL_CURVE` registry effects.
 
 **Removed entirely in this branch** (no longer in the structs): `cpuScore` (renamed to
 `player2Score` — `isCpu` stays), `curveAngle` (replaced by the registry `STAT_BALL_CURVE` +
