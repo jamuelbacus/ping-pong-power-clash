@@ -40,12 +40,18 @@ void InitGame(Game* game) {
     InitPaddle(&game->paddle, PLAYER1_PADDLE_POSITION.x, PLAYER1_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000.0f, 500.0f, 0.9f, KEY_W, KEY_S, SPEEDSTER);
     InitPaddle(&game->player2Paddle, PLAYER2_PADDLE_POSITION.x, PLAYER2_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, false, 4000.0f, 500.0f, 0.9f, KEY_UP, KEY_DOWN, SPEEDSTER);
     game->playerScore = 0;
-    game->cpuScore = 0;
+    game->player2Score = 0;
     game->gameState = MENU;
     game->currentSelectingPlayer = 0;
     game->selectedChar[0] = SPEEDSTER;
     game->selectedChar[1] = SPEEDSTER;
     EffectsInit(&game->effects);
+}
+
+int GameWinner(const Game* game) {
+    if (game->playerScore >= WINNING_SCORE) return 1;
+    if (game->player2Score >= WINNING_SCORE) return 2;
+    return 0;
 }
 
 static void resetBall(Game* game) {
@@ -80,10 +86,16 @@ static void updateGamePlay(Game* game, float deltaTime) {
      * gone before UpdateBall/UpdatePaddle query them. */
     EffectsUpdate(&game->effects, deltaTime);
 
+    /* Match over: stop simulating until the player leaves GAME_OVER. */
+    if (game->playerScore >= WINNING_SCORE || game->player2Score >= WINNING_SCORE) {
+        game->gameState = GAME_OVER;
+        return;
+    }
+
     UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
 
     if (game->ball.position.x < 0) {
-        game->cpuScore++;
+        game->player2Score++;
         resetBall(game);
     } else if (game->ball.position.x > WINDOW_WIDTH) {
         game->playerScore++;
@@ -161,7 +173,7 @@ static void DrawGameplay(const Game* game) {
 
     /* Scores */
     DrawTextCentered(TextFormat("%d", game->playerScore), WINDOW_WIDTH / 4.0f, 20, 48, p1, true);
-    DrawTextCentered(TextFormat("%d", game->cpuScore), 3 * WINDOW_WIDTH / 4.0f, 20, 48, p2, true);
+    DrawTextCentered(TextFormat("%d", game->player2Score), 3 * WINDOW_WIDTH / 4.0f, 20, 48, p2, true);
 
     /* Character names */
     DrawText(characters[game->paddle.charType].name, 10, 50, 18, p1);
@@ -191,6 +203,26 @@ static void DrawGameplay(const Game* game) {
                  "2", characters[right->charType].skills[1], right->skill2Cooldown, SKILL2_COOLDOWN, p2);
     DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 76, (int)HUD_P2.width - 16,
                  "3", characters[right->charType].skills[2], right->ultimateCooldown, ULTIMATE_COOLDOWN, p2);
+}
+
+static void DrawGameOver(const Game* game) {
+    int winner = GameWinner(game);
+    const char* message;
+    Color accent;
+
+    if (winner == 1) {
+        message = game->player2Paddle.isCpu ? "You Win!" : "Player 1 Wins!";
+        accent = characters[game->paddle.charType].accent;
+    } else if (winner == 2) {
+        message = game->player2Paddle.isCpu ? "CPU Wins!" : "Player 2 Wins!";
+        accent = characters[game->player2Paddle.charType].accent;
+    } else {
+        message = "Game Over";
+        accent = THEME_TEXT;
+    }
+
+    DrawTextCentered(message, WINDOW_WIDTH / 2.0f, 210, 48, accent, true);
+    DrawTextCentered("SPACE: Menu    R: Rematch", WINDOW_WIDTH / 2.0f, 285, 20, THEME_TEXT, false);
 }
 
 void UpdateGame(Game* game, float deltaTime) {
@@ -230,6 +262,12 @@ void UpdateGame(Game* game, float deltaTime) {
                 }
             }
         }
+    } else if (game->gameState == GAME_OVER) {
+        if (IsKeyPressed(KEY_SPACE)) {
+            game->gameState = MENU;
+        } else if (IsKeyPressed(KEY_R)) {
+            ResetGame(game);
+        }
     }
 }
 
@@ -241,21 +279,18 @@ void DrawGame(const Game* game) {
     } else if (game->gameState == CHARACTER_SELECT) {
         DrawCharacterSelect(game);
     } else if (game->gameState == PLAY_CPU || game->gameState == PLAY_PVP) {
-        if (game->playerScore >= WINNING_SCORE) {
-            DrawTextCentered("YOU WIN!", WINDOW_WIDTH / 2.0f, 250, 48, characters[game->paddle.charType].accent, true);
-        } else if (game->cpuScore >= WINNING_SCORE) {
-            const char* who = game->player2Paddle.isCpu ? "CPU WINS!" : "PLAYER 2 WINS!";
-            DrawTextCentered(who, WINDOW_WIDTH / 2.0f, 250, 48, characters[game->player2Paddle.charType].accent, true);
-        } else {
-            DrawGameplay(game);
-        }
+        DrawGameplay(game);
+    } else if (game->gameState == GAME_OVER) {
+        DrawGameplay(game);
+        DrawGameOver(game);
     }
 }
 
 void ResetGame(Game* game) {
     game->playerScore = 0;
-    game->cpuScore = 0;
+    game->player2Score = 0;
     resetBall(game);
+    EffectsClear(&game->effects);
     game->gameState = MENU;
     game->currentSelectingPlayer = 0;
 }

@@ -33,7 +33,7 @@ int main(void) {
                KEY_UP, KEY_DOWN, SPEEDSTER);
 
     game.playerScore = 0;
-    game.cpuScore = 0;
+    game.player2Score = 0;
     EffectsInit(&game.effects);
 
     /* Simulate one second (60 frames). A single miss must not award 60 points. */
@@ -41,8 +41,8 @@ int main(void) {
         updateGamePlay(&game, 1.0f / 60.0f);
 
     int failed = 0;
-    if (game.cpuScore != 1) {
-        printf("FAIL: cpuScore = %d (expected exactly 1)\n", game.cpuScore);
+    if (game.player2Score != 1) {
+        printf("FAIL: player2Score = %d (expected exactly 1)\n", game.player2Score);
         failed = 1;
     }
     if (game.playerScore != 0) {

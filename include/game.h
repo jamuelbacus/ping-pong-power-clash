@@ -15,14 +15,14 @@ static const char* WINDOW_TITLE = "Ping Pong: Power Clash";
 
 static const int WINNING_SCORE = 5;
 
-typedef enum GameState { MENU, CHARACTER_SELECT, PLAY_CPU, PLAY_PVP } GameState;
+typedef enum GameState { MENU, CHARACTER_SELECT, PLAY_CPU, PLAY_PVP, GAME_OVER } GameState;
 
 typedef struct Game {
     Ball ball;
     Paddle paddle;
     Paddle player2Paddle;
     int playerScore;
-    int cpuScore;
+    int player2Score;
     GameState gameState;
     int currentSelectingPlayer;
     CharacterType selectedChar[2];
@@ -35,5 +35,8 @@ void InitGame(Game* game);
 void UpdateGame(Game* game, float deltaTime);
 void DrawGame(const Game* game);
 void ResetGame(Game* game);
+
+/* 0 = no winner yet, 1 = player 1, 2 = player 2. */
+int GameWinner(const Game* game);
 
 #endif // GAME_H

@@ -11,7 +11,7 @@ int main(void) {
     InitPaddle(&g.paddle, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
     InitPaddle(&g.player2Paddle, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
     EffectsInit(&g.effects);
-    g.playerScore = g.cpuScore = 0;
+    g.playerScore = g.player2Score = 0;
 
     UpdateBall(&g.ball, &g.effects, 1.0f/60.0f, 960, 540, &g.paddle, &g.player2Paddle);
     CHECK(g.ball.position.y >= g.ball.radius, "ball clamped inside the top wall");
