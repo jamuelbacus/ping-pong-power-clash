@@ -204,6 +204,9 @@ of using them), `skill1Timer`, `skill2Timer`, `ultimateTimer`, `skill1Active`, `
 `ultimateActive`, `speedMultiplier`, `sizeMultiplier`, `mirrorField`, `heavyPaddle`,
 `smashShotReady`, `piercingShot`, `widthMultiplier`, `deadeye`.
 
+**Also unused** — `BALL_SPEED_INCREMENT` (`include/ball.h`, 20 px/s): defined but never
+referenced. The ball's size/feel is effect-driven instead.
+
 **Removed entirely in this branch** (no longer in the structs): `cpuScore` (renamed to
 `player2Score` — `isCpu` stays), `curveAngle` (replaced by the registry `STAT_BALL_CURVE` +
 `Ball::lateralVelocity`), `shieldBlock` (replaced by `Paddle::shieldTimer`), and the fake-ball /

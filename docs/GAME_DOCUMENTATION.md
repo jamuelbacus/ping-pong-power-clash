@@ -61,9 +61,11 @@ Matches are first-to-5, single arena, no power-ups on the field.
 
 - Size `20 × 100` (`PADDLE_WIDTH × PADDLE_HEIGHT`), positioned left at `(50, 200)` and right at
   `(890, 200)`.
-- Movement snaps to a max speed on key press and stops instantly on release: player 1 `maxSpeed`
-  is 500 px/s, player 2 / CPU 250 px/s. The `accel` / `friction` tuning fields are stored but not
-  used by movement (`UpdatePaddle` sets `velocityY = ±maxSpeed`).
+- Movement snaps to a max speed on key press and stops instantly on release: player 1 and
+  player 2 / CPU share `maxSpeed` 500 px/s (`InitGame` passes `maxSpeed 500` to both paddles).
+  The `speed` init argument (300 for player 1, 250 for player 2) is a dead field never read, as
+  are the `accel` / `friction` tuning fields — movement snaps instantly (`UpdatePaddle` sets
+  `velocityY = ±maxSpeed`).
 - CPU paddles track the ball's Y position directly at `maxSpeed`.
 - `UpdatePaddle` **derives effective stats from the effects registry every frame**:
   `maxSpeed` from any `STAT_PADDLE_SPEED` effect, paddle height from any `STAT_PADDLE_SIZE`
@@ -87,8 +89,11 @@ Matches are first-to-5, single arena, no power-ups on the field.
 ### Scoring & winning
 
 - Ball off the **right** edge → player 1 scores; off the **left** edge → player 2 (or CPU) scores.
-- First to **5** (`WINNING_SCORE`) wins. The moment either score reaches 5 the match is frozen:
-  `updateGamePlay` stops simulating and `gameState` becomes `GAME_OVER`.
+- First to **5** (`WINNING_SCORE`) wins. The frame after the winning point the match freezes:
+  the win check at the top of `updateGamePlay` flips `gameState` to `GAME_OVER` and returns
+  before physics. On the scoring frame itself the match is still live — `UpdatePaddle` ×2 and
+  `CpuTickAbilities` run once after `resetBall`, so the CPU can fire one final ability whose
+  effect (e.g. a HUD active dot) lingers on the frozen GAME_OVER frame.
 - At `GAME_OVER` the current match scene (scoreboard, HUD, effect juice) stays drawn — the
   simulation is halted, so nothing moves — with a winner banner overlaid
   (PvP: "Player 1 Wins!" / "Player 2 Wins!"; CPU: "You Win!" / "CPU Wins!"):
@@ -316,6 +321,8 @@ way (now resolved and guarded by regression tests in `tests/`):
   `skill2Timer`, `ultimateTimer`, `skill1Active`, `skill2Active`, `ultimateActive`,
   `speedMultiplier`, `sizeMultiplier`, `mirrorField`, `heavyPaddle`, `smashShotReady`,
   `piercingShot`, `widthMultiplier`, `deadeye`. Removing them is cleanup, not gameplay work.
+  The `BALL_SPEED_INCREMENT` constant in `include/ball.h` (20 px/s) is likewise defined but never
+  used.
 - **Ability balance & feel** — tuning is deliberately conservative; numbers, durations, and the
   CPU difficulty (50%) are all constants that need play-testing.
 - **Curve direction** — the lateral bend always accumulates toward `+X`; making the sign follow
