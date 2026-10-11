@@ -123,20 +123,20 @@ static void updateGamePlay(Game* game, float deltaTime) {
 /* ---------------------------------------------------------------- draw */
 
 /* Effect "juice", drawn AFTER the entities so auras tint over them (R22):
- *  - ball trail: two velocity-offset ghost circles while STAT_TRAIL is live
+ *  - ball trail: history echoes at recorded positions while STAT_TRAIL is live
  *  - ball tint: translucent accent glow over the ball while any ball effect runs
- *  - paddle aura + dash ghost rects + defender shield barrier per paddle
+ *  - paddle aura + dash history echoes + defender shield barrier per paddle
  * Every pushed stat marker maps to a visible state here; nothing in the
  * registry is draw-only-dead (see self-review in the task report). */
 static void DrawEffects(const Effects* fx, const Ball* ball, const Paddle* p1, const Paddle* p2) {
     if (EffectTrailActive(fx, TARGET_BALL, -1)) {
-        Vector2 g1 = { ball->position.x - ball->velocity.x * 0.12f,
-                       ball->position.y - ball->velocity.y * 0.12f };
-        Vector2 g2 = { ball->position.x - ball->velocity.x * 0.24f,
-                       ball->position.y - ball->velocity.y * 0.24f };
+        TrailGhost ghosts[TRAIL_MAX_GHOSTS];
+        int n = TrailActiveGhosts(&ball->trail, TRAIL_MAX_GHOSTS, ghosts);
         float r = ball->radius * ball->sizeMultiplier;
-        DrawGlowCircle(g1, r, Fade(ball->color, 0.35f), 6.0f);
-        DrawGlowCircle(g2, r, Fade(ball->color, 0.20f), 6.0f);
+        for (int i = 0; i < n; i++) {
+            float a = 0.5f - 0.4f * (ghosts[i].age / TRAIL_MAX_AGE);
+            DrawGlowCircle(ghosts[i].pos, r, Fade(ball->color, a), 6.0f);
+        }
     }
 
     Color ballTint = EffectTintColor(fx, TARGET_BALL, -1);
@@ -156,18 +156,17 @@ static void DrawEffects(const Effects* fx, const Ball* ball, const Paddle* p1, c
             DrawGlowRectLines(aura, 1.5f, tint, 6.0f);
         }
 
-        /* Dash afterimage: two ghost rects lagging the movement (clamped so
-         * a high velocityY can't fling the ghosts off the arena). */
+        /* True afterimage: fading echoes at recorded positions — the paddle's own
+         * footprint is always present (trail history starts at the pre-snap spot). */
         if (EffectTrailActive(fx, TARGET_PADDLE, i)) {
-            float off1 = p->velocityY * 0.05f;
-            float off2 = p->velocityY * 0.10f;
-            if (off1 > 10.0f) off1 = 10.0f; else if (off1 < -10.0f) off1 = -10.0f;
-            if (off2 > 16.0f) off2 = 16.0f; else if (off2 < -16.0f) off2 = -16.0f;
+            TrailGhost ghosts[TRAIL_MAX_GHOSTS];
+            int n = TrailActiveGhosts(&p->trail, TRAIL_MAX_GHOSTS, ghosts);
             Color ghost = characters[p->charType].accent;
-            Rectangle g = { p->position.x, p->position.y - off1, p->size.x, p->size.y };
-            DrawGlowRect(g, Fade(ghost, 0.35f), 4.0f);
-            g.y = p->position.y - off2;
-            DrawGlowRect(g, Fade(ghost, 0.20f), 4.0f);
+            for (int j = 0; j < n; j++) {
+                float a = 0.5f - 0.4f * (ghosts[j].age / TRAIL_MAX_AGE);
+                Rectangle g = { ghosts[j].pos.x, ghosts[j].pos.y, p->size.x, p->size.y };
+                DrawGlowRect(g, Fade(ghost, a), 4.0f);
+            }
         }
 
         /* Defender shield barrier in front of the paddle's court face. */
