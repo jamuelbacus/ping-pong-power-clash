@@ -37,17 +37,18 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
                         .stat = STAT_PADDLE_SPEED, .op = OP_MUL, .value = 2.0f,
                         .timeLeft = 4.0f, .duration = 4.0f, .color = color, .source = source });
                     break;
-                case 2: /* Afterimage Hit: faster ball for 5s plus a 5s ball trail. */
+                case 2: /* Afterimage Hit: faster ball for 5s plus a 5s ball trail.
+                         * Ball effects are always keyed at -1, the index the
+                         * ball reads regardless of which paddle fired. */
                     EffectsPush(fx, (Effect){
-                        .active = true, .target = TARGET_BALL, .paddleIndex = source - 1,
+                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
                         .stat = STAT_BALL_SPEED, .op = OP_MUL, .value = 1.35f,
                         .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
                     EffectsPush(fx, (Effect){
-                        .active = true, .target = TARGET_BALL, .paddleIndex = source - 1,
+                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
                         .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f,
                         .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
                     break;
-                default: break;
             }
             break;
         case GRAND_WIZARD: /* Task 7 */ break;
