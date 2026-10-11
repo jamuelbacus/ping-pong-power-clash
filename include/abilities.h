@@ -23,6 +23,15 @@
 /* Probability in [0,1] that a context-approved decision tick actually fires. */
 #define CPU_DIFFICULTY 0.5f
 
+/* Defender Iron Fortress locks the paddle to this height (the logical canvas
+ * height; matches game.h WINDOW_HEIGHT). Kept here so abilities.c need not
+ * depend on game.h. */
+static const float FORTRESS_PADDLE_HEIGHT = 540.0f;
+
+/* Defender Shield Block: a shielded paddle hit reflects the ball at this
+ * multiple of its base speed (instead of the usual speedFactor step). */
+static const float DEFENDER_SHIELD_REFLECT_MULT = 1.3f;
+
 /* ability: 0 = skill1, 1 = skill2, 2 = ultimate. Sets that ability's cooldown
  * and pushes the character's effect(s). `paddleIndex` is the source of the
  * effects; ball-targeted effects inside use paddleIndex -1. */

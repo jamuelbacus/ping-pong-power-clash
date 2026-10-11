@@ -76,7 +76,33 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
                     break;
             }
             break;
-        case DEFENDER:     /* Task 8 */ break;
+        case DEFENDER:
+            switch (ability) {
+                case 0: /* Shield Block: arm a powered reflect for the next
+                         * paddle hit. The window is consumed by UpdateBall on
+                         * contact and decays in UpdatePaddle when unused. */
+                    paddle->shieldTimer = 5.0f;
+                    break;
+                case 1: /* Wide Paddle: 1.8x height for 4s. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_PADDLE_SIZE, .op = OP_MUL, .value = 1.8f,
+                        .timeLeft = 4.0f, .duration = 4.0f, .color = color, .source = source });
+                    break;
+                case 2: /* Iron Fortress: lock the paddle to full height and
+                         * mark it immovable for 5s. UpdatePaddle derives
+                         * immovable from the marker each frame. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_PADDLE_SIZE, .op = OP_SET, .value = FORTRESS_PADDLE_HEIGHT,
+                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_PADDLE_IMMOVABLE, .op = OP_SET, .value = 1.0f,
+                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
+                    break;
+            }
+            break;
         default: break;
     }
 }

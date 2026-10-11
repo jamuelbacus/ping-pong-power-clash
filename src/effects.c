@@ -27,7 +27,10 @@ void EffectsInit(Effects* fx) {
 
 void EffectsPush(Effects* fx, Effect e) {
     /* Refresh an existing entry with the same (target, paddle, stat, source)
-     * instead of stacking a duplicate. */
+     * instead of stacking a duplicate. The new effect fully replaces the slot
+     * (including `op`), so re-casting an ability — even one that hits the same
+     * stat with a different operation, e.g. Defender Wide Paddle (MUL) then
+     * Iron Fortress (SET) — makes the latest activation authoritative. */
     for (int i = 0; i < EFFECT_CAPACITY; i++) {
         Effect* slot = &fx->items[i];
         if (slot->active
@@ -35,10 +38,7 @@ void EffectsPush(Effects* fx, Effect e) {
             && slot->paddleIndex == e.paddleIndex
             && slot->stat == e.stat
             && slot->source == e.source) {
-            slot->value = e.value;
-            slot->timeLeft = e.timeLeft;
-            slot->duration = e.duration;
-            slot->color = e.color;
+            *slot = e;
             return;
         }
     }

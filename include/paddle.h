@@ -44,11 +44,11 @@ typedef struct Paddle {
     float speedMultiplier;
     float sizeMultiplier;
     bool immovable;
+    float shieldTimer; // Defender Shield Block: armed reflect window (seconds), consumed on hit
     // For Trickster mirror
     bool mirrorField;
     bool heavyPaddle;
     bool smashShotReady;
-    bool shieldBlock;
     bool piercingShot;
     Vector2 originalSize;
     float originalMaxSpeed;

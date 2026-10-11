@@ -8,6 +8,7 @@
 #include "paddle.h"
 #include "theme.h"
 #include "effects.h"
+#include "abilities.h"
 
 #include <math.h>
 
@@ -103,14 +104,21 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         // Angle-based bounce
         float hitPos = (ball->position.y - paddle1->position.y) / paddle1->size.y;  // 0 (top) to 1 (bottom)
         float angle = (hitPos - 0.5f) * PI / 2;  // Max 90 degrees up/down
+        // Defender Shield Block: consume the struck paddle's armed shield and
+        // reflect at a fixed base-speed multiplier. A shielded hit must not
+        // also apply the regular speedFactor creep.
+        bool shielded = paddle1->shieldTimer > 0.0f;
+        if (shielded) paddle1->shieldTimer = 0.0f;
         float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
-        float speed = baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
+        float speed = shielded ? baseSpeed * DEFENDER_SHIELD_REFLECT_MULT : baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
         float dirX = (paddle1->position.x < screenWidth / 2) ? 1.0f : -1.0f;
         ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
         ball->lateralVelocity = 0.0f; /* a paddle hit resets the curve bend */
-        ball->speedFactor *= 1.005f;
-        if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
+        if (!shielded) {
+            ball->speedFactor *= 1.005f;
+            if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
+        }
         // Push the ball clear of the paddle on the outward face (the side is
         // derived from the paddle's screen half) so one contact produces exactly
         // one bounce and one speedFactor step.
@@ -121,14 +129,20 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
         float angle = (hitPos - 0.5f) * PI / 2;
+        // Defender Shield Block: consume the struck paddle's armed shield and
+        // reflect at a fixed base-speed multiplier (no speedFactor creep).
+        bool shielded = paddle2->shieldTimer > 0.0f;
+        if (shielded) paddle2->shieldTimer = 0.0f;
         float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
-        float speed = baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
+        float speed = shielded ? baseSpeed * DEFENDER_SHIELD_REFLECT_MULT : baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
         float dirX = (paddle2->position.x < screenWidth / 2) ? 1.0f : -1.0f;
         ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
         ball->lateralVelocity = 0.0f; /* a paddle hit resets the curve bend */
-        ball->speedFactor *= 1.005f;
-        if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
+        if (!shielded) {
+            ball->speedFactor *= 1.005f;
+            if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
+        }
         // Push the ball clear of the paddle on the outward face (the side is
         // derived from the paddle's screen half) so one contact produces exactly
         // one bounce and one speedFactor step.

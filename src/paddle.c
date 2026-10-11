@@ -35,10 +35,10 @@ void InitPaddle(Paddle* paddle, float x, float y, float width, float height, flo
     paddle->speedMultiplier = 1.0f;
     paddle->sizeMultiplier = 1.0f;
     paddle->immovable = false;
+    paddle->shieldTimer = 0.0f;
     paddle->mirrorField = false;
     paddle->heavyPaddle = false;
     paddle->smashShotReady = false;
-    paddle->shieldBlock = false;
     paddle->piercingShot = false;
     paddle->originalSize = paddle->size;
     paddle->originalMaxSpeed = paddle->maxSpeed;
@@ -76,9 +76,18 @@ void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime,
     paddle->ultimateCooldown -= deltaTime;
     if (paddle->ultimateCooldown < 0) paddle->ultimateCooldown = 0;
 
+    // Defender Shield Block: decay the armed reflect window each frame.
+    if (paddle->shieldTimer > 0.0f) {
+        paddle->shieldTimer -= deltaTime;
+        if (paddle->shieldTimer < 0.0f) paddle->shieldTimer = 0.0f;
+    }
+
     // Derive effective stats from base + active effects each frame.
     paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SPEED, paddle->originalMaxSpeed);
     float effectiveHeight = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SIZE, paddle->originalSize.y);
+    // Defender Iron Fortress maps STAT_PADDLE_IMMOVABLE onto the paddle here so
+    // the immovable branches below always read the live effect state.
+    paddle->immovable = EffectsHas(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_IMMOVABLE);
     if (paddle->immovable) {
         paddle->size = (Vector2){paddle->originalSize.x, (float)screenHeight};
         paddle->position.y = 0;
