@@ -34,7 +34,7 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
         .color = color,
         .speedFactor = 1.0f,
         .slowTimer = 0.0f,
-        .curveAngle = 0.0f,
+        .lateralVelocity = 0.0f,
         .illusions = false,
         .fakeBallPos = {0.0f, 0.0f},
         .fakeBallActive = false,
@@ -66,13 +66,20 @@ static void ApplyBallEffects(Ball* ball, Effects* fx) {
 }
 
 void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int screenHeight, Paddle* paddle1, Paddle* paddle2) {
-    // Curve is a lateral acceleration applied to the base (source of truth)
-    // direction. The legacy curveAngle field and the STAT_BALL_CURVE effect
-    // (Grand Wizard Curve Spell / Arcane Chaos) both feed it, and this runs
+    // Curve Spell / Arcane Chaos accumulate in lateralVelocity while the
+    // effect is active, and decay back to 0 when it ends. The bend never
+    // touches baseVelocity, so a timed effect can't leave permanent state
+    // behind and the base stays authoritative for wall bounces. This runs
     // before the effective velocity is derived so the bend shows this frame.
-    float curveAccel = ball->curveAngle
-        + EffectsApply(fx, TARGET_BALL, -1, STAT_BALL_CURVE, 0.0f);
-    ball->baseVelocity.x += curveAccel * deltaTime;
+    if (EffectsHas(fx, TARGET_BALL, -1, STAT_BALL_CURVE)) {
+        ball->lateralVelocity += EffectsApply(fx, TARGET_BALL, -1, STAT_BALL_CURVE, 0.0f) * deltaTime;
+    } else if (ball->lateralVelocity != 0.0f) {
+        // ...and decay back to 0 when the effect ends, so the bend is
+        // self-restoring and never writes a permanent state into base.
+        float decay = CURVE_DECAY_RATE * deltaTime;
+        if (ball->lateralVelocity > 0.0f) ball->lateralVelocity -= fminf(ball->lateralVelocity, decay);
+        else if (ball->lateralVelocity < 0.0f) ball->lateralVelocity += fminf(-ball->lateralVelocity, decay);
+    }
 
     // Derive the effective velocity from base + active effects.
     ApplyBallEffects(ball, fx);
@@ -101,6 +108,7 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         float dirX = (paddle1->position.x < screenWidth / 2) ? 1.0f : -1.0f;
         ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
+        ball->lateralVelocity = 0.0f; /* a paddle hit resets the curve bend */
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
         // Push the ball clear of the paddle on the outward face (the side is
@@ -118,6 +126,7 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         float dirX = (paddle2->position.x < screenWidth / 2) ? 1.0f : -1.0f;
         ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
+        ball->lateralVelocity = 0.0f; /* a paddle hit resets the curve bend */
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
         // Push the ball clear of the paddle on the outward face (the side is
@@ -131,6 +140,9 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
     // Reflect any base-velocity mutation back into the effective velocity so
     // callers (and the next frame) observe the post-collision direction now.
     ApplyBallEffects(ball, fx);
+
+    // Lateral bend rides on the effective velocity only; base stays authoritative.
+    ball->velocity.x += ball->lateralVelocity;
 
     // Cap max speed
     CapVelocity(&ball->velocity, BALL_MAX_VELOCITY);

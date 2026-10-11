@@ -15,6 +15,7 @@ static const float BALL_BASE_VELOCITY_X = 300.0f;
 static const float BALL_BASE_VELOCITY_Y = 200.0f;
 static const float BALL_MAX_VELOCITY = 800.0f;
 static const float BALL_SPEED_INCREMENT = 20.0f;
+static const float CURVE_DECAY_RATE = 400.0f; /* px/s of lateral bend shed per second once the curve effect ends */
 static const Color BALL_COLOR = RED;
 static const Vector2 BALL_POSITION = {480, 270};
 
@@ -24,14 +25,14 @@ typedef struct Paddle Paddle; // forward declaration
 typedef struct Ball {
     Vector2 position;
     Vector2 velocity;      // effective velocity used by physics (derived from baseVelocity)
-    Vector2 baseVelocity;  // source of truth for direction/speed; collisions and curve write here
+    Vector2 baseVelocity;  // source of truth for direction/speed; collisions write here
     float radius;
     Color color;
     float speedFactor;
 
     // Skill effect variables
     float slowTimer;
-    float curveAngle;
+    float lateralVelocity; // curve bend: accumulates while STAT_BALL_CURVE is active, decays on expiry
     bool illusions;
     Vector2 fakeBallPos;
     bool fakeBallActive;

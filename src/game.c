@@ -71,7 +71,7 @@ static void resetBall(Game* game) {
     EffectsClear(&game->effects);
     ball->slowTimer = 0.0f;
     ball->lagTimer = 0.0f;
-    ball->curveAngle = 0.0f;
+    ball->lateralVelocity = 0.0f;
     ball->illusions = false;
     ball->fakeBallActive = false;
     ball->fakeBallPos = (Vector2){ 0.0f, 0.0f };

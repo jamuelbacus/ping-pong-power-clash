@@ -1,10 +1,11 @@
 /* tests/test_wizard.c
  * Grand Wizard abilities:
- *   0 Curve Spell   -> a 3s lateral ball curve seeded via STAT_BALL_CURVE (R17).
+ *   0 Curve Spell   -> a 3s lateral ball curve seeded via STAT_BALL_CURVE.
  *   1 Time Slow     -> TARGET_BALL STAT_BALL_SPEED MUL 0.5 for 2s.
  *   2 Arcane Chaos  -> a stronger 5s lateral ball curve.
- * Curve/Chaos are modelled as a real per-frame lateral acceleration on the
- * ball's authoritative baseVelocity, so Pong wall bouncing is never corrupted.
+ * Curve/Chaos accumulate in Ball::lateralVelocity, which is added to the
+ * effective velocity only — baseVelocity stays authoritative for wall
+ * bounces — and decay back to 0 when the effect expires (R18).
  */
 #include "abilities.h"
 #include "effects.h"
@@ -58,8 +59,10 @@ int main(void) {
     CHECK(EffectValueOf(&fx, TARGET_BALL, -1, STAT_BALL_CURVE) == 400.0f, "arcane chaos is stronger (400)");
     CHECK(EffectDurationOf(&fx, TARGET_BALL, -1, STAT_BALL_CURVE) == 5.0f, "arcane chaos lasts 5s");
 
-    /* R17: the curve must bend the authoritative baseVelocity.x over time,
-     * applied before the effective velocity is derived, without touching y. */
+    /* R18: the curve accumulates in lateralVelocity and is added to the
+     * effective velocity only. baseVelocity must stay pristine (a timed
+     * effect must never leave permanent state), and the bend must decay back
+     * to 0 once the effect expires. */
     Effects cfx; EffectsInit(&cfx);
     Ball cb; InitBall(&cb, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle p1; InitPaddle(&p1, 50, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
@@ -68,8 +71,16 @@ int main(void) {
     float startX = cb.baseVelocity.x;
     float startY = cb.baseVelocity.y;
     UpdateBall(&cb, &cfx, 0.1f, 960, 540, &p1, &p2);
-    CHECK(cb.baseVelocity.x > startX, "curve accelerates baseVelocity.x forward");
-    CHECK(cb.baseVelocity.y == startY, "curve leaves baseVelocity.y untouched");
+    CHECK(cb.baseVelocity.x == startX, "curve must not corrupt baseVelocity.x");
+    CHECK(cb.baseVelocity.y == startY, "base y untouched");
+    CHECK(cb.lateralVelocity > 0.0f, "lateral velocity accumulated");
+    CHECK(cb.velocity.x > startX, "bend visible in effective velocity");
+
+    /* The curve is a timed effect: once it expires the lateral bend must
+     * decay away, leaving no permanent state behind. */
+    EffectsUpdate(&cfx, 3.5f);
+    for (int i = 0; i < 5; i++) UpdateBall(&cb, &cfx, 0.1f, 960, 540, &p1, &p2);
+    CHECK(cb.lateralVelocity == 0.0f, "lateral velocity self-restores to 0");
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;
