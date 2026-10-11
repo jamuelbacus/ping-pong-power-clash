@@ -1,0 +1,44 @@
+# Credits & Asset Licenses
+
+Third-party assets used by *Ping Pong: Power Clash*, with source and license.
+**Keep this file updated whenever you add art, audio, or fonts** — it's how the project
+stays license-clean, especially in a public repo.
+
+## Character icons — [game-icons.net](https://game-icons.net)
+
+All icons below are from game-icons.net and licensed under
+[**CC BY 3.0**](https://creativecommons.org/licenses/by/3.0/) (attribution required).
+They were converted from SVG to white, transparent PNG (128×128) and are **tinted at runtime**
+by each character's accent color.
+
+| File | Icon | Author | Source |
+| --- | --- | --- | --- |
+| `assets/characters/speedster.png` | ninja-mask | Lorc | https://game-icons.net/1x1/lorc/ninja-mask.html |
+| `assets/characters/power_striker.png` | boxing-glove | Lorc | https://game-icons.net/1x1/lorc/boxing-glove.html |
+| `assets/characters/grand_wizard.png` | wizard-face | Delapouite | https://game-icons.net/1x1/delapouite/wizard-face.html |
+| `assets/characters/trickster.png` | jester-hat | Delapouite | https://game-icons.net/1x1/delapouite/jester-hat.html |
+| `assets/characters/defender.png` | shield-reflect | Lorc | https://game-icons.net/1x1/lorc/shield-reflect.html |
+| `assets/characters/elementalist.png` | flame | Carl Olsen | https://game-icons.net/1x1/carl-olsen/flame.html |
+| `assets/characters/sniper.png` | targeting | Lorc | https://game-icons.net/1x1/lorc/targeting.html |
+| `assets/characters/chaos_bot.png` | robot-golem | Lorc | https://game-icons.net/1x1/lorc/robot-golem.html |
+
+## Logo
+
+| File | Author | License |
+| --- | --- | --- |
+| `pingpongpowerclashlogo.png` | project owner | © project owner |
+
+## Fonts / Audio
+
+None yet.
+
+## raylib
+
+Bundled/used under its own zlib license — see [`LICENSE`](LICENSE).
+
+## License quick-reference
+
+- **CC0** — public domain, no attribution, commercial OK. Safest to use.
+- **CC BY 3.0** — attribution required (see table above); keep this file with the game.
+- **CC BY-SA / GPL** — copyleft; check compatibility before using in a closed-source build.
+- **"non-commercial"** — cannot be used if you ever monetize.

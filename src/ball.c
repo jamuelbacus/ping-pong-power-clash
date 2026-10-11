@@ -6,6 +6,7 @@
 #include "raylib.h"
 #include "ball.h"
 #include "paddle.h"
+#include "theme.h"
 #include "utils.h"
 
 #include <math.h>
@@ -107,12 +108,12 @@ void UpdateBall(Ball* ball, float deltaTime, int screenWidth, int screenHeight, 
 }
 
 void DrawBall(const Ball* ball) {
-    DrawCircleV(ball->position, ball->radius * ball->sizeMultiplier, ball->color);
+    DrawGlowCircle(ball->position, ball->radius * ball->sizeMultiplier, ball->color, 8.0f);
     if (ball->fakeBallActive) {
-        DrawCircleV(ball->fakeBallPos, ball->radius, Fade(ball->color, 0.5f));
+        DrawGlowCircle(ball->fakeBallPos, ball->radius, Fade(ball->color, 0.6f), 4.0f);
     }
     if (ball->illusions) {
-        DrawCircleV((Vector2){ball->position.x + 20, ball->position.y}, ball->radius, Fade(ball->color, 0.7f));
-        DrawCircleV((Vector2){ball->position.x - 20, ball->position.y}, ball->radius, Fade(ball->color, 0.7f));
+        DrawGlowCircle((Vector2){ball->position.x + 20, ball->position.y}, ball->radius, Fade(ball->color, 0.7f), 4.0f);
+        DrawGlowCircle((Vector2){ball->position.x - 20, ball->position.y}, ball->radius, Fade(ball->color, 0.7f), 4.0f);
     }
 }

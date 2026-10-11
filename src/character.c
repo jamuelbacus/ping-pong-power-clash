@@ -6,7 +6,7 @@
 #include "character.h"
 #include <string.h>
 
-Character characters[8];
+Character characters[CHARACTER_COUNT];
 
 void InitCharacters() {
     // Speedster
@@ -88,4 +88,14 @@ void InitCharacters() {
     strcpy(characters[CHAOS_BOT].skills[2], "System Error");
     strcpy(characters[CHAOS_BOT].strength, "Unpredictable fun");
     strcpy(characters[CHAOS_BOT].weakness, "Unreliable control");
+
+    // Neon accent colors (drive paddle, name tag, HUD and card glow)
+    characters[SPEEDSTER].accent      = (Color){   0, 229, 255, 255 }; // cyan
+    characters[POWER_STRIKER].accent  = (Color){ 255,  95,  40, 255 }; // ember orange
+    characters[GRAND_WIZARD].accent   = (Color){ 172,  92, 255, 255 }; // arcane purple
+    characters[TRICKSTER].accent      = (Color){ 255,  72, 190, 255 }; // hot magenta
+    characters[DEFENDER].accent       = (Color){  64, 132, 255, 255 }; // guardian blue
+    characters[ELEMENTALIST].accent   = (Color){   0, 230, 170, 255 }; // teal
+    characters[SNIPER].accent         = (Color){ 255, 200,  60, 255 }; // gold
+    characters[CHAOS_BOT].accent      = (Color){ 120, 255,  90, 255 }; // glitch green
 }

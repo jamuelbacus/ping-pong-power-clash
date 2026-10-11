@@ -5,6 +5,7 @@
 #include "ball.h"
 #include "paddle.h"
 #include "character.h"
+#include "assets.h"
 #include "utils.h"
 
 static const int WINDOW_WIDTH = 960;
@@ -24,7 +25,7 @@ typedef struct Game {
     GameState gameState;
     int currentSelectingPlayer;
     CharacterType selectedChar[2];
-    Texture2D logo;
+    Assets assets;
 } Game;
 
 

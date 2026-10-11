@@ -8,11 +8,13 @@
     #include "paddle.h"
     #include "character.h"
     #include "game.h"
+    #include "theme.h"
 
     int main() 
     {  
         InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE);
-        
+        SetTargetFPS(60);
+
         Game game;
         InitGame(&game);
 
@@ -22,11 +24,11 @@
             UpdateGame(&game, deltaTime);
             
             BeginDrawing();
-            ClearBackground(WHITE);
+            ClearBackground(THEME_BG);
             DrawGame(&game);
             EndDrawing();
         }
         
-        UnloadTexture(game.logo);
+        UnloadAssets(&game.assets);
         CloseWindow();
     }

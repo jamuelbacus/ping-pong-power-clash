@@ -6,6 +6,7 @@
 #include "raylib.h"
 #include "paddle.h"
 #include "ball.h"
+#include "theme.h"
 
 void InitPaddle(Paddle* paddle, float x, float y, float width, float height, float speed, Color color, bool isCpu, float accel, float maxSpeed, float friction, int upKey, int downKey, CharacterType charType) {
     paddle->position = (Vector2){x, y};
@@ -335,5 +336,7 @@ void UpdatePaddle(Paddle* paddle, float deltaTime, int screenHeight, Ball* ball)
 }
 
 void DrawPaddle(Paddle paddle) {
-    DrawRectangleV(paddle.position, paddle.size, paddle.color);
+    Color accent = characters[paddle.charType].accent;
+    Rectangle rec = { paddle.position.x, paddle.position.y, paddle.size.x, paddle.size.y };
+    DrawGlowRect(rec, accent, 10.0f);
 }

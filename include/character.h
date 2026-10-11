@@ -19,6 +19,8 @@ typedef enum CharacterType {
     CHAOS_BOT
 } CharacterType;
 
+#define CHARACTER_COUNT 8
+
 typedef struct Character {
     char name[20];
     char theme[50];
@@ -26,9 +28,10 @@ typedef struct Character {
     char skills[3][50]; // 0: skill1, 1: skill2, 2: ultimate
     char strength[50];
     char weakness[50];
+    Color accent; // neon accent color for UI / paddle / glow
 } Character;
 
-extern Character characters[8];
+extern Character characters[CHARACTER_COUNT];
 
 void InitCharacters();
 

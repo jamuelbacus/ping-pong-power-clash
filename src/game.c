@@ -1,8 +1,40 @@
 #include "game.h"
+#include "theme.h"
+#include "layout.h"
+
+/* ---------------------------------------------------------------- helpers */
+
+static void DrawTextCentered(const char* text, float centerX, int y, int fontSize, Color color, bool glow) {
+    int x = (int)(centerX - MeasureText(text, fontSize) / 2.0f);
+    if (glow) DrawGlowText(text, x, y, fontSize, color);
+    else DrawText(text, x, y, fontSize, color);
+}
+
+static void DrawMenuButton(Rectangle rec, const char* label, Color accent, bool hovered) {
+    Color fill = hovered ? THEME_PANEL_HI : THEME_PANEL;
+    DrawGlowRect(rec, fill, hovered ? 10.0f : 5.0f);
+    DrawGlowRectLines(rec, 2.0f, accent, hovered ? 10.0f : 5.0f);
+    DrawTextCentered(label, rec.x + rec.width / 2.0f, (int)(rec.y + (rec.height - 24) / 2.0f), 24, THEME_TEXT, true);
+}
+
+/* One skill row: "Q: Dash Return (2.3s)" + a cooldown progress bar. */
+static void DrawSkillRow(int x, int y, int width, const char* key, const char* name,
+                         float cooldown, float maxCooldown, Color accent) {
+    const char* label = (cooldown > 0.05f)
+        ? TextFormat("%s: %s (%.1fs)", key, name, cooldown)
+        : TextFormat("%s: %s", key, name);
+    DrawText(label, x, y, 13, THEME_TEXT);
+
+    float t = (cooldown <= 0.0f) ? 1.0f : 1.0f - (cooldown / maxCooldown);
+    DrawRectangle(x, y + 16, width, 3, Fade(THEME_TEXT_DIM, 0.30f));
+    DrawRectangle(x, y + 16, (int)(width * t), 3, accent);
+}
+
+/* ---------------------------------------------------------------- lifecycle */
 
 void InitGame(Game* game) {
     InitCharacters();
-    game->logo = LoadTexture("pingpongpowerclashlogo.png");
+    LoadAssets(&game->assets);
     InitBall(&game->ball, BALL_POSITION.x, BALL_POSITION.y, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     InitPaddle(&game->paddle, PLAYER1_PADDLE_POSITION.x, PLAYER1_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000.0f, 500.0f, 0.9f, KEY_W, KEY_S, SPEEDSTER);
     InitPaddle(&game->player2Paddle, PLAYER2_PADDLE_POSITION.x, PLAYER2_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, false, 4000.0f, 500.0f, 0.9f, KEY_UP, KEY_DOWN, SPEEDSTER);
@@ -16,11 +48,14 @@ void InitGame(Game* game) {
 
 static void resetBall(Game* game) {
     float velX = (game->ball.velocity.x > 0) ? BALL_BASE_VELOCITY_X : -BALL_BASE_VELOCITY_X;
+    (void)velX; /* NOTE: ball reset is still a no-op; tracked as a known bug. */
 }
+
+/* ---------------------------------------------------------------- gameplay */
 
 static void updateGamePlay(Game* game, float deltaTime) {
     UpdateBall(&game->ball, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
-    
+
     if (game->ball.position.x < 0) {
         game->cpuScore++;
         resetBall(game);
@@ -28,44 +63,108 @@ static void updateGamePlay(Game* game, float deltaTime) {
         game->playerScore++;
         resetBall(game);
     }
-    
+
     UpdatePaddle(&game->paddle, deltaTime, WINDOW_HEIGHT, &game->ball);
     UpdatePaddle(&game->player2Paddle, deltaTime, WINDOW_HEIGHT, &game->ball);
 }
 
+/* ---------------------------------------------------------------- draw */
+
 static void DrawMenu(const Game* game) {
-    // Draw logo centered at top, scaled to fit
-    if (game->logo.width > 0) {
-        float scale = 250.0f / game->logo.width;
-        DrawTextureEx(game->logo, (Vector2){(WINDOW_WIDTH - (game->logo.width * scale)) / 2, 30}, 0, scale, WHITE);
+    if (game->assets.logo.loaded) {
+        float scale = 250.0f / game->assets.logo.texture.width;
+        DrawTextureEx(game->assets.logo.texture,
+                      (Vector2){ (WINDOW_WIDTH - (game->assets.logo.texture.width * scale)) / 2, 40 },
+                      0, scale, WHITE);
     }
 
-    DrawRectangle(350, 250, 260, 50, GRAY);
-    DrawText("Player vs CPU", 370, 260, 30, BLACK);
-    DrawRectangle(350, 330, 260, 50, GRAY);
-    DrawText("Player vs Player", 370, 340, 30, BLACK);
+    Vector2 mouse = GetMousePosition();
+    DrawMenuButton(MENU_BTN_CPU, "Player vs CPU", characters[SPEEDSTER].accent,
+                   CheckCollisionPointRec(mouse, MENU_BTN_CPU));
+    DrawMenuButton(MENU_BTN_PVP, "Player vs Player", characters[TRICKSTER].accent,
+                   CheckCollisionPointRec(mouse, MENU_BTN_PVP));
 }
 
 static void DrawCharacterSelect(const Game* game) {
-    DrawText("Select Character", 350, 50, 30, BLACK);
-    DrawText(game->currentSelectingPlayer == 0 ? "Player 1" : "Player 2", 400, 20, 25, BLACK);
-    for (int i = 0; i < 8; i++) {
-        int x = (i % 4) * 200 + 50;
-        int y = (i / 4) * 100 + 100;
-        DrawRectangle(x, y, 180, 80, GRAY);
-        DrawText(characters[i].name, x + 10, y + 10, 20, BLACK);
-        DrawText(characters[i].theme, x + 10, y + 30, 15, DARKGRAY);
+    Vector2 mouse = GetMousePosition();
+
+    DrawTextCentered("SELECT CHARACTER", WINDOW_WIDTH / 2.0f, 30, 36, THEME_TEXT, true);
+    Color who = (game->currentSelectingPlayer == 0) ? characters[game->selectedChar[0]].accent : THEME_ACCENT;
+    DrawTextCentered(game->currentSelectingPlayer == 0 ? "PLAYER 1" : "PLAYER 2",
+                     WINDOW_WIDTH / 2.0f, 90, 22, who, true);
+
+    for (int i = 0; i < CHARACTER_COUNT; i++) {
+        Rectangle card = CharCellRect(i);
+        bool hovered = CheckCollisionPointRec(mouse, card);
+        Color accent = characters[i].accent;
+
+        DrawGlowRect(card, hovered ? THEME_PANEL_HI : THEME_PANEL, hovered ? 10.0f : 4.0f);
+        DrawGlowRectLines(card, 2.0f, accent, hovered ? 12.0f : 6.0f);
+
+        float iconSize = 52.0f;
+        Rectangle iconBox = { card.x + (card.width - iconSize) / 2.0f, card.y + 12.0f, iconSize, iconSize };
+        if (game->assets.character[i].loaded) {
+            DrawSpriteInBox(game->assets.character[i], iconBox, accent);
+        } else {
+            DrawGlowCircle((Vector2){ iconBox.x + iconSize / 2.0f, iconBox.y + iconSize / 2.0f },
+                           iconSize * 0.35f, accent, 8.0f);
+        }
+
+        DrawTextCentered(characters[i].name, card.x + card.width / 2.0f, (int)(card.y + card.height - 44), 16, THEME_TEXT, false);
+        DrawTextCentered(characters[i].theme, card.x + card.width / 2.0f, (int)(card.y + card.height - 24), 11, THEME_TEXT_DIM, false);
+
+        /* P1 / P2 ownership tags */
+        if ((int)game->selectedChar[0] == i)
+            DrawText("P1", (int)card.x + 6, (int)card.y + 6, 12, characters[i].accent);
+        if ((int)game->selectedChar[1] == i)
+            DrawText("P2", (int)(card.x + card.width - 20), (int)card.y + 6, 12, characters[i].accent);
     }
 }
 
 static void DrawGameplay(const Game* game) {
+    /* Center line */
+    DrawGlowLine((Vector2){ WINDOW_WIDTH / 2.0f, 0 }, (Vector2){ WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT },
+                 Fade(THEME_GRID_HI, 0.7f), 5.0f);
+
     DrawBall(&game->ball);
     DrawPaddle(game->paddle);
     DrawPaddle(game->player2Paddle);
 
-    // Draw scores
-    DrawText(TextFormat("%d", game->playerScore), WINDOW_WIDTH / 4, 20, 40, BLACK);
-    DrawText(TextFormat("%d", game->cpuScore), 3 * WINDOW_WIDTH / 4, 20, 40, BLACK);
+    Color p1 = characters[game->paddle.charType].accent;
+    Color p2 = characters[game->player2Paddle.charType].accent;
+
+    /* Scores */
+    DrawTextCentered(TextFormat("%d", game->playerScore), WINDOW_WIDTH / 4.0f, 20, 48, p1, true);
+    DrawTextCentered(TextFormat("%d", game->cpuScore), 3 * WINDOW_WIDTH / 4.0f, 20, 48, p2, true);
+
+    /* Character names */
+    DrawText(characters[game->paddle.charType].name, 10, 50, 18, p1);
+    DrawText(characters[game->player2Paddle.charType].name, WINDOW_WIDTH - 10 - MeasureText(characters[game->player2Paddle.charType].name, 18), 50, 18, p2);
+
+    /* HUD panels */
+    DrawGlowRect(HUD_P1, THEME_PANEL, 4.0f);
+    DrawGlowRectLines(HUD_P1, 1.5f, p1, 5.0f);
+    DrawText("SKILLS", (int)HUD_P1.x + 8, (int)HUD_P1.y + 6, 15, p1);
+
+    const Paddle* left = &game->paddle;
+    DrawSkillRow((int)HUD_P1.x + 8, (int)HUD_P1.y + 28, (int)HUD_P1.width - 16,
+                 "Q", characters[left->charType].skills[0], left->skill1Cooldown, SKILL1_COOLDOWN, p1);
+    DrawSkillRow((int)HUD_P1.x + 8, (int)HUD_P1.y + 52, (int)HUD_P1.width - 16,
+                 "E", characters[left->charType].skills[1], left->skill2Cooldown, SKILL2_COOLDOWN, p1);
+    DrawSkillRow((int)HUD_P1.x + 8, (int)HUD_P1.y + 76, (int)HUD_P1.width - 16,
+                 "R", characters[left->charType].skills[2], left->ultimateCooldown, ULTIMATE_COOLDOWN, p1);
+
+    DrawGlowRect(HUD_P2, THEME_PANEL, 4.0f);
+    DrawGlowRectLines(HUD_P2, 1.5f, p2, 5.0f);
+    DrawText("SKILLS", (int)HUD_P2.x + 8, (int)HUD_P2.y + 6, 15, p2);
+
+    const Paddle* right = &game->player2Paddle;
+    DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 28, (int)HUD_P2.width - 16,
+                 "1", characters[right->charType].skills[0], right->skill1Cooldown, SKILL1_COOLDOWN, p2);
+    DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 52, (int)HUD_P2.width - 16,
+                 "2", characters[right->charType].skills[1], right->skill2Cooldown, SKILL2_COOLDOWN, p2);
+    DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 76, (int)HUD_P2.width - 16,
+                 "3", characters[right->charType].skills[2], right->ultimateCooldown, ULTIMATE_COOLDOWN, p2);
 }
 
 void UpdateGame(Game* game, float deltaTime) {
@@ -74,10 +173,10 @@ void UpdateGame(Game* game, float deltaTime) {
     } else if (game->gameState == MENU) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Vector2 mousePos = GetMousePosition();
-            if (CheckCollisionPointRec(mousePos, (Rectangle){350,250,260,50})) {
+            if (CheckCollisionPointRec(mousePos, MENU_BTN_CPU)) {
                 game->gameState = CHARACTER_SELECT;
                 game->player2Paddle.isCpu = true;
-            } else if (CheckCollisionPointRec(mousePos, (Rectangle){350,330,260,50})) {
+            } else if (CheckCollisionPointRec(mousePos, MENU_BTN_PVP)) {
                 game->gameState = CHARACTER_SELECT;
                 game->player2Paddle.isCpu = false;
             }
@@ -85,13 +184,11 @@ void UpdateGame(Game* game, float deltaTime) {
     } else if (game->gameState == CHARACTER_SELECT) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             Vector2 mousePos = GetMousePosition();
-            for (int i = 0; i < 8; i++) {
-                int x = (i % 4) * 200 + 50;
-                int y = (i / 4) * 100 + 100;
-                if (CheckCollisionPointRec(mousePos, (Rectangle){x, y, 180, 80})) {
+            for (int i = 0; i < CHARACTER_COUNT; i++) {
+                if (CheckCollisionPointRec(mousePos, CharCellRect(i))) {
                     game->selectedChar[game->currentSelectingPlayer] = i;
                     if (game->player2Paddle.isCpu) { // CPU mode
-                        game->selectedChar[1] = GetRandomValue(0, 7);
+                        game->selectedChar[1] = GetRandomValue(0, CHARACTER_COUNT - 1);
                         game->player2Paddle.charType = game->selectedChar[1];
                         game->gameState = PLAY_CPU;
                     } else { // PVP
@@ -111,34 +208,20 @@ void UpdateGame(Game* game, float deltaTime) {
 }
 
 void DrawGame(const Game* game) {
+    DrawGridBackground(WINDOW_WIDTH, WINDOW_HEIGHT);
+
     if (game->gameState == MENU) {
         DrawMenu(game);
     } else if (game->gameState == CHARACTER_SELECT) {
         DrawCharacterSelect(game);
     } else if (game->gameState == PLAY_CPU || game->gameState == PLAY_PVP) {
         if (game->playerScore >= WINNING_SCORE) {
-            DrawText("You Win!", 400, 250, 40, BLUE);
+            DrawTextCentered("YOU WIN!", WINDOW_WIDTH / 2.0f, 250, 48, characters[game->paddle.charType].accent, true);
         } else if (game->cpuScore >= WINNING_SCORE) {
-            DrawText("CPU Wins!", 400, 250, 40, RED);
+            const char* who = game->player2Paddle.isCpu ? "CPU WINS!" : "PLAYER 2 WINS!";
+            DrawTextCentered(who, WINDOW_WIDTH / 2.0f, 250, 48, characters[game->player2Paddle.charType].accent, true);
         } else {
             DrawGameplay(game);
-            DrawText(characters[game->paddle.charType].name, 10, 50, 20, BLUE);
-            DrawText(characters[game->player2Paddle.charType].name, 800, 50, 20, GREEN);
-            DrawLine(480, 0, 480, 540, BLACK);  // Center line
-            DrawText(TextFormat("Player: %d", game->playerScore), 10, 10, 20, BLUE);
-            DrawText(TextFormat("%s: %d", game->player2Paddle.isCpu ? "CPU" : "Player 2", game->cpuScore), 800, 10, 20, RED);
-            // Skill UI for Player 1
-            DrawRectangle(10, 450, 200, 80, Fade(BLUE, 0.5f));
-            DrawText("Player 1 Skills", 15, 455, 18, WHITE);
-            DrawText(TextFormat("Q: %s (%.1fs)", characters[game->paddle.charType].skills[0], game->paddle.skill1Cooldown), 15, 475, 14, WHITE);
-            DrawText(TextFormat("E: %s (%.1fs)", characters[game->paddle.charType].skills[1], game->paddle.skill2Cooldown), 15, 490, 14, WHITE);
-            DrawText(TextFormat("R: %s (%.1fs)", characters[game->paddle.charType].skills[2], game->paddle.ultimateCooldown), 15, 505, 14, WHITE);
-            // Skill UI for Player 2
-            DrawRectangle(750, 450, 200, 80, Fade(GREEN, 0.5f));
-            DrawText("Player 2 Skills", 755, 455, 18, WHITE);
-            DrawText(TextFormat("1: %s (%.1fs)", characters[game->player2Paddle.charType].skills[0], game->player2Paddle.skill1Cooldown), 755, 475, 14, WHITE);
-            DrawText(TextFormat("2: %s (%.1fs)", characters[game->player2Paddle.charType].skills[1], game->player2Paddle.skill2Cooldown), 755, 490, 14, WHITE);
-            DrawText(TextFormat("3: %s (%.1fs)", characters[game->player2Paddle.charType].skills[2], game->player2Paddle.ultimateCooldown), 755, 505, 14, WHITE);
         }
     }
 }
