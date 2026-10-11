@@ -1,6 +1,7 @@
 #include "game.h"
 #include "theme.h"
 #include "layout.h"
+#include "viewport.h"
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -78,7 +79,7 @@ static void DrawMenu(const Game* game) {
                       0, scale, WHITE);
     }
 
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = GetVirtualMouse();
     DrawMenuButton(MENU_BTN_CPU, "Player vs CPU", characters[SPEEDSTER].accent,
                    CheckCollisionPointRec(mouse, MENU_BTN_CPU));
     DrawMenuButton(MENU_BTN_PVP, "Player vs Player", characters[TRICKSTER].accent,
@@ -86,7 +87,7 @@ static void DrawMenu(const Game* game) {
 }
 
 static void DrawCharacterSelect(const Game* game) {
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = GetVirtualMouse();
 
     DrawTextCentered("SELECT CHARACTER", WINDOW_WIDTH / 2.0f, 30, 36, THEME_TEXT, true);
     Color who = (game->currentSelectingPlayer == 0) ? characters[game->selectedChar[0]].accent : THEME_ACCENT;
@@ -172,7 +173,7 @@ void UpdateGame(Game* game, float deltaTime) {
         updateGamePlay(game, deltaTime);
     } else if (game->gameState == MENU) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            Vector2 mousePos = GetMousePosition();
+            Vector2 mousePos = GetVirtualMouse();
             if (CheckCollisionPointRec(mousePos, MENU_BTN_CPU)) {
                 game->gameState = CHARACTER_SELECT;
                 game->player2Paddle.isCpu = true;
@@ -183,7 +184,7 @@ void UpdateGame(Game* game, float deltaTime) {
         }
     } else if (game->gameState == CHARACTER_SELECT) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            Vector2 mousePos = GetMousePosition();
+            Vector2 mousePos = GetVirtualMouse();
             for (int i = 0; i < CHARACTER_COUNT; i++) {
                 if (CheckCollisionPointRec(mousePos, CharCellRect(i))) {
                     game->selectedChar[game->currentSelectingPlayer] = i;
