@@ -20,19 +20,40 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
         default: return;
     }
 
-    /* Per-character effect bodies arrive in Tasks 6-8 (Speedster / Grand
-     * Wizard / Defender). This dispatch is the scaffold they plug into. */
     switch (type) {
-        case SPEEDSTER:    /* Task 6 */ break;
+        case SPEEDSTER:
+            switch (ability) {
+                case 0: /* Dash Return: snap the paddle onto the ball and leave a
+                         * short afterimage trail where it flashed from. */
+                    paddle->position.y = ball->position.y - paddle->size.y / 2.0f;
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f,
+                        .timeLeft = 0.3f, .duration = 0.3f, .color = color, .source = source });
+                    break;
+                case 1: /* Speed Boost: doubled paddle speed for 4s. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_PADDLE_SPEED, .op = OP_MUL, .value = 2.0f,
+                        .timeLeft = 4.0f, .duration = 4.0f, .color = color, .source = source });
+                    break;
+                case 2: /* Afterimage Hit: faster ball for 5s plus a 5s ball trail. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_BALL, .paddleIndex = source - 1,
+                        .stat = STAT_BALL_SPEED, .op = OP_MUL, .value = 1.35f,
+                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_BALL, .paddleIndex = source - 1,
+                        .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f,
+                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
+                    break;
+                default: break;
+            }
+            break;
         case GRAND_WIZARD: /* Task 7 */ break;
         case DEFENDER:     /* Task 8 */ break;
         default: break;
     }
-
-    (void)fx;
-    (void)ball;
-    (void)color;
-    (void)source;
 }
 
 void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleIndex, float dt) {

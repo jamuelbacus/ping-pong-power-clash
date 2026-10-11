@@ -12,14 +12,15 @@ int main(void) {
     Ball b; InitBall(&b, 800, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle cpu; InitPaddle(&cpu, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,GRAND_WIZARD);
 
-    /* A single 1/60 tick must not fire everything at once: count the live
-     * entries and assert at most one ability was activated. */
+    /* A single 1/60 tick must not fire everything at once: each activation
+     * commits exactly one cooldown, so at most one cooldown may be armed.
+     * (A single ability may push more than one effect, so counting effect
+     * entries would be wrong.) */
     CpuTickAbilities(&fx, &b, &cpu, 1, 1.0f/60.0f);
-    int n = 0;
-    const Effect* list = EffectsList(&fx, &n);
-    int active = 0;
-    for (int i = 0; i < n; i++) if (list[i].active) active++;
-    CHECK(active <= 1, "one decision tick fires at most one ability");
+    int activated = (cpu.skill1Cooldown > 0.0f)
+                  + (cpu.skill2Cooldown > 0.0f)
+                  + (cpu.ultimateCooldown > 0.0f);
+    CHECK(activated <= 1, "one decision tick fires at most one ability");
 
     /* Advancing a full decision interval keeps the timer bounded and non-negative. */
     for (int i = 0; i < 120; i++) CpuTickAbilities(&fx, &b, &cpu, 1, 1.0f/60.0f);
