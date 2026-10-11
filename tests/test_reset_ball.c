@@ -8,11 +8,12 @@
  *
  * Build & run (from the project root):
  *   gcc tests/test_reset_ball.c src/theme.c src/viewport.c src/assets.c \
- *       src/ball.c src/paddle.c src/character.c \
+ *       src/ball.c src/paddle.c src/character.c src/effects.c \
  *       -Iinclude $(pkg-config --cflags --libs raylib) -lm -o tests/test_reset_ball
  *   ./tests/test_reset_ball
  */
 #include "../src/game.c"
+#include "effects.h"
 
 #include <stdio.h>
 
@@ -33,6 +34,7 @@ int main(void) {
 
     game.playerScore = 0;
     game.cpuScore = 0;
+    EffectsInit(&game.effects);
 
     /* Simulate one second (60 frames). A single miss must not award 60 points. */
     for (int i = 0; i < 60; i++)
