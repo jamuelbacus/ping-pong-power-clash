@@ -60,6 +60,16 @@ int main(void) {
         failed = 1;
     }
 
+    /* R23: resetBall must also disarm any armed Defender shield window so a
+     * powered reflect can never carry across a point ("nothing lingers"). */
+    game.paddle.shieldTimer = 3.0f;
+    game.player2Paddle.shieldTimer = 3.0f;
+    resetBall(&game);
+    if (game.paddle.shieldTimer != 0.0f || game.player2Paddle.shieldTimer != 0.0f) {
+        printf("FAIL: resetBall carried an armed shield across the point\n");
+        failed = 1;
+    }
+
     if (failed) {
         printf("RESULT: FAIL\n");
         return 1;

@@ -70,6 +70,10 @@ static void resetBall(Game* game) {
     /* Clear all active effects so nothing (ball- or paddle-targeted) lingers
      * across a point. */
     EffectsClear(&game->effects);
+    /* Also disarm any armed Defender shield window: an unspent reflect must
+     * not carry into the next point (R23). */
+    game->paddle.shieldTimer = 0.0f;
+    game->player2Paddle.shieldTimer = 0.0f;
     ball->slowTimer = 0.0f;
     ball->lagTimer = 0.0f;
     ball->lateralVelocity = 0.0f;
