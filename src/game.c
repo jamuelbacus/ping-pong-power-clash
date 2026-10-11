@@ -75,6 +75,10 @@ static void resetBall(Game* game) {
 /* ---------------------------------------------------------------- gameplay */
 
 static void updateGamePlay(Game* game, float deltaTime) {
+    /* Expire timed effects before physics so effects that end this frame are
+     * gone before UpdateBall/UpdatePaddle query them. */
+    EffectsUpdate(&game->effects, deltaTime);
+
     UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
 
     if (game->ball.position.x < 0) {

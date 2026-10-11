@@ -25,6 +25,16 @@ int main(void) {
     CHECK(!EffectsHas(&g.effects, TARGET_BALL, -1, STAT_BALL_SPEED), "resetBall clears effects");
     CHECK(g.ball.position.x == BALL_POSITION.x, "ball recentered");
 
+    /* timed effects must expire through the game loop tick */
+    EffectsPush(&g.effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+        .stat=STAT_BALL_SPEED, .op=OP_MUL, .value=0.5f, .timeLeft=0.01f, .duration=0.01f,
+        .color=WHITE, .source=1 });
+    g.ball.position = BALL_POSITION;
+    g.ball.baseVelocity = (Vector2){0.0f, 0.0f};   /* stays put so no point is scored */
+    g.ball.velocity = (Vector2){0.0f, 0.0f};
+    updateGamePlay(&g, 1.0f/60.0f);
+    CHECK(!EffectsHas(&g.effects, TARGET_BALL, -1, STAT_BALL_SPEED), "effects expire through updateGamePlay");
+
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;
 }
