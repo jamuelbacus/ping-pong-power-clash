@@ -1,5 +1,7 @@
 /* tests/test_ball_physics.c — includes ../src/game.c to reach resetBall */
 #include "../src/game.c"
+#include "trail.h"
+#include "effects.h"
 #include <stdio.h>
 #include <math.h>
 static int fails = 0;
@@ -35,6 +37,20 @@ int main(void) {
     g.ball.velocity = (Vector2){0.0f, 0.0f};
     updateGamePlay(&g, 1.0f/60.0f);
     CHECK(!EffectsHas(&g.effects, TARGET_BALL, -1, STAT_BALL_SPEED), "effects expire through updateGamePlay");
+
+    /* R-trail records while live and resetBall wipes it (no cross-point ghosts). */
+    {
+        EffectsPush(&g.effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+            .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f, .timeLeft=5.0f, .duration=5.0f,
+            .color=BALL_COLOR, .source=0 });
+        for (int i = 0; i < 6; i++) updateGamePlay(&g, 1.0f/60.0f);
+        TrailGhost ghosts[TRAIL_MAX_GHOSTS];
+        CHECK(TrailActiveGhosts(&g.ball.trail, TRAIL_MAX_GHOSTS, ghosts) > 0,
+              "ball afterimage records ghost positions while its marker is live");
+        resetBall(&g);
+        CHECK(TrailActiveGhosts(&g.ball.trail, TRAIL_MAX_GHOSTS, ghosts) == 0,
+              "resetBall clears the ball afterimage");
+    }
 
     /* paddle separation: one contact == exactly one bounce / speedFactor step.
      * dt = 0 keeps the ball at its cleared position so a tangency-only "clear"

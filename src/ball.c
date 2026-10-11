@@ -9,6 +9,7 @@
 #include "theme.h"
 #include "effects.h"
 #include "abilities.h"
+#include "trail.h"
 
 #include <math.h>
 
@@ -41,6 +42,9 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
         .lagTimer = 0.0f,
         .randomEffects = false
     };
+
+    /* The afterimage ring starts empty (no live ghosts) on every (re)init. */
+    TrailHistoryInit(&ball->trail);
 }
 
 /* Derive the effective velocity from baseVelocity plus active ball effects.
@@ -157,6 +161,13 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
 
     // Cap max speed
     CapVelocity(&ball->velocity, BALL_MAX_VELOCITY);
+
+    // "True afterimage" history: ghosts always age out, and positions are only
+    // recorded while the STAT_TRAIL marker is live, so the ring never carries
+    // footprints from before the effect started.
+    TrailHistoryUpdate(&ball->trail, deltaTime);
+    if (EffectsHas(fx, TARGET_BALL, -1, STAT_TRAIL))
+        TrailHistoryRecord(&ball->trail, ball->position);
 }
 
 void DrawBall(const Ball* ball) {

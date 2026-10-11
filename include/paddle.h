@@ -9,6 +9,7 @@
 #include "raylib.h"
 #include "character.h"
 #include "effects.h"
+#include "trail.h"
 
 static const Vector2 PLAYER1_PADDLE_POSITION = {50, 200};
 static const Vector2 PLAYER2_PADDLE_POSITION = {890, 200};
@@ -54,6 +55,8 @@ typedef struct Paddle {
     float originalMaxSpeed;
     float widthMultiplier;
     bool deadeye;
+    // "True afterimage" position history: recorded per frame while STAT_TRAIL is live
+    TrailHistory trail;
 } Paddle;
 
 void InitPaddle(Paddle* paddle, float x, float y, float width, float height, float speed, Color color, bool isCpu, float accel, float maxSpeed, float friction, int upKey, int downKey, CharacterType charType);

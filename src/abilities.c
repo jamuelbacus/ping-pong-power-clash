@@ -6,6 +6,7 @@
 
 #include "abilities.h"
 #include "layout.h"
+#include "trail.h"
 
 void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex, CharacterType type, int ability) {
     Color color = characters[type].accent;
@@ -25,6 +26,9 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
             switch (ability) {
                 case 0: /* Dash Return: snap the paddle onto the ball and leave a
                          * short afterimage trail where it flashed from. */
+                    /* Park the pre-snap footprint first so the dash origin is
+                     * part of the history the trail marker is about to draw. */
+                    TrailHistoryRecord(&paddle->trail, paddle->position);
                     paddle->position.y = ball->position.y - paddle->size.y / 2.0f;
                     EffectsPush(fx, (Effect){
                         .active = true, .target = TARGET_PADDLE, .paddleIndex = source,

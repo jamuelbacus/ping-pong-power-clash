@@ -12,20 +12,23 @@ Each recipe below was verified from the **project root**; every binary is writte
 | Test | What it guards | Link set (sources besides `tests/<name>.c`) |
 | --- | --- | --- |
 | `test_effects` | Registry semantics: MUL/ADD/SET order, same-source refresh vs distinct-source stack, expiry restores base | `src/effects.c` |
-| `test_effective_stats` | Base-vs-derived velocity; paddle speed ×2 and restore; effects applied exactly once | `abilities effects ball paddle character theme` |
-| `test_ball_physics` | Wall clamp/bounce, `resetBall` (clears effects, recenters), timed-effect expiry, one contact = one bounce/creep | `visuals theme viewport assets ball paddle character effects utils abilities` |
-| `test_game_over` | Reaching 5 enters `GAME_OVER`; simulation frozen there | `visuals theme viewport assets ball paddle character effects utils abilities` |
-| `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields | `visuals theme viewport assets ball paddle character effects utils abilities` |
-| `test_cpu_policy` | One decision tick fires at most one ability; decision timer never negative | `abilities effects ball paddle character utils theme` |
-| `test_speedster` | Dash snap + trail, Speed Boost ×2, Afterimage Hit ×1.35 + ball trail at index −1 | `abilities effects ball paddle character theme` |
-| `test_wizard` | Curve Spell/Arcane Chaos strengths + durations, self-restoring bend, base untouched | `abilities effects ball paddle character theme` |
-| `test_defender` | Shield arm/consume/reflect (×1.3, no creep), Wide Paddle ×1.8, Iron Fortress full height + immovable | `abilities effects ball paddle character theme` |
-| `test_visuals` | Pure visual queries match the registry: tint, trail, active-dot ownership, shield window | `visuals abilities effects ball paddle character theme` |
+| `test_effective_stats` | Base-vs-derived velocity; paddle speed ×2 and restore; effects applied exactly once | `abilities effects ball paddle character theme trail` |
+| `test_ball_physics` | Wall clamp/bounce, `resetBall` (clears effects, recenters), timed-effect expiry, one contact = one bounce/creep | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
+| `test_game_over` | Reaching 5 enters `GAME_OVER`; simulation frozen there | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
+| `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
+| `test_cpu_policy` | One decision tick fires at most one ability; decision timer never negative | `abilities effects ball paddle character utils theme trail` |
+| `test_speedster` | Dash snap + trail, Speed Boost ×2, Afterimage Hit ×1.35 + ball trail at index −1 | `abilities effects ball paddle character theme trail` |
+| `test_wizard` | Curve Spell/Arcane Chaos strengths + durations, self-restoring bend, base untouched | `abilities effects ball paddle character theme trail` |
+| `test_defender` | Shield arm/consume/reflect (×1.3, no creep), Wide Paddle ×1.8, Iron Fortress full height + immovable | `abilities effects ball paddle character theme trail` |
+| `test_visuals` | Pure visual queries match the registry: tint, trail, active-dot ownership, shield window | `visuals abilities effects ball paddle character theme trail` |
+| `test_trail` | Pure position-history ring: record/age/expire order, newest-first readout, fixed capacity, ghosts never move | `trail` |
 
 > `src/theme.c` is needed even by "logic-only" suites because `paddle.c` / `ball.c` draw
 > functions reference `DrawGlowRect` / `DrawGlowCircle` (`theme.c`) and `characters[]`
 > (`character.c`) in the same translation units. `src/abilities.c` is needed whenever
 > `paddle.c` is linked — its skill-input block references `AbilitiesActivate`.
+> `src/trail.c` is needed whenever `ball.c` / `paddle.c` / `abilities.c` / `game.c` is
+> linked — every one of them records into a `TrailHistory` ring.
 
 ---
 
@@ -52,7 +55,7 @@ effective magnitude; paddle `STAT_PADDLE_SPEED` ×2 doubles `maxSpeed` and expir
 
 ```sh
 gcc tests/test_effective_stats.c src/abilities.c src/effects.c src/ball.c src/paddle.c \
-    src/character.c src/theme.c -Iinclude \
+    src/character.c src/theme.c src/trail.c -Iinclude \
     $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_effective_stats
 /tmp/test_effective_stats
 ```
@@ -74,6 +77,7 @@ through a game-loop tick, and one paddle contact produces exactly one bounce / o
 gcc tests/test_ball_physics.c \
     src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
+    src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_ball_physics
 /tmp/test_ball_physics
 ```
@@ -90,6 +94,7 @@ reports player 1, and the simulation is **frozen** — the ball stops moving whi
 gcc tests/test_game_over.c \
     src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
+    src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_game_over
 /tmp/test_game_over
 ```
@@ -108,6 +113,7 @@ reflect can't carry across a point.
 gcc tests/test_reset_ball.c \
     src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
+    src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_reset_ball
 /tmp/test_reset_ball
 ```
@@ -124,7 +130,7 @@ ticks.
 ```sh
 gcc tests/test_cpu_policy.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c \
-    src/character.c src/utils.c src/theme.c \
+    src/character.c src/utils.c src/theme.c src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_cpu_policy
 /tmp/test_cpu_policy
 ```
@@ -141,6 +147,7 @@ regardless of which paddle activated it.
 ```sh
 gcc tests/test_speedster.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c src/character.c src/theme.c \
+    src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_speedster
 /tmp/test_speedster
 ```
@@ -158,6 +165,7 @@ expires.
 ```sh
 gcc tests/test_wizard.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c src/character.c src/theme.c \
+    src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_wizard
 /tmp/test_wizard
 ```
@@ -175,6 +183,7 @@ immovable marker that `UpdatePaddle` maps to `paddle->immovable`, releasing clea
 ```sh
 gcc tests/test_defender.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c src/character.c src/theme.c \
+    src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_defender
 /tmp/test_defender
 ```
@@ -193,9 +202,24 @@ shapes.
 
 ```sh
 gcc tests/test_visuals.c src/visuals.c src/abilities.c src/effects.c src/ball.c \
-    src/paddle.c src/character.c src/theme.c \
+    src/paddle.c src/character.c src/theme.c src/trail.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_visuals
 /tmp/test_visuals
+```
+
+Expected output: `RESULT: PASS` (exit code 0).
+
+## `test_trail`
+
+The pure position-history ring behind the "true afterimage" (`TrailHistory`). No window, no
+entities: it records positions, reads them back newest-first, ages them out at
+`TRAIL_MAX_AGE`, and evicts the oldest past `TRAIL_MAX_GHOSTS` — with no dynamic
+allocation anywhere.
+
+```sh
+gcc tests/test_trail.c src/trail.c -Iinclude \
+    $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_trail
+/tmp/test_trail
 ```
 
 Expected output: `RESULT: PASS` (exit code 0).

@@ -8,6 +8,7 @@
 #include "ball.h"
 #include "abilities.h"
 #include "theme.h"
+#include "trail.h"
 
 void InitPaddle(Paddle* paddle, float x, float y, float width, float height, float speed, Color color, bool isCpu, float accel, float maxSpeed, float friction, int upKey, int downKey, CharacterType charType) {
     paddle->position = (Vector2){x, y};
@@ -44,6 +45,7 @@ void InitPaddle(Paddle* paddle, float x, float y, float width, float height, flo
     paddle->originalMaxSpeed = paddle->maxSpeed;
     paddle->widthMultiplier = 1.0f;
     paddle->deadeye = false;
+    TrailHistoryInit(&paddle->trail);
 }
 
 void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime, int screenHeight, Ball* ball) {
@@ -123,6 +125,13 @@ void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime,
         paddle->position.y = screenHeight - paddle->size.y;
         paddle->velocityY = 0;
     }
+
+    // "True afterimage" history: ghosts always age out, and positions are only
+    // recorded while this paddle's STAT_TRAIL marker is live, so the ring never
+    // carries footprints from before the effect started.
+    TrailHistoryUpdate(&paddle->trail, deltaTime);
+    if (EffectsHas(fx, TARGET_PADDLE, paddleIndex, STAT_TRAIL))
+        TrailHistoryRecord(&paddle->trail, paddle->position);
 }
 
 void DrawPaddle(Paddle paddle) {

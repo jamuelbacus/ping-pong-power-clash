@@ -4,6 +4,7 @@
 #include "ball.h"
 #include "paddle.h"
 #include "character.h"
+#include "trail.h"
 #include <stdio.h>
 static int fails = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("FAIL: %s\n", m); fails = 1; } } while (0)
@@ -29,6 +30,20 @@ int main(void) {
     CHECK(pad.position.y == 400.0f - PADDLE_HEIGHT/2, "dash snaps paddle to ball Y");
     CHECK(EffectsHas(&fx, TARGET_PADDLE, 0, STAT_TRAIL), "dash arms a paddle trail marker");
     CHECK(EffectDurationOf(&fx, TARGET_PADDLE, 0, STAT_TRAIL) == 0.3f, "dash trail lasts 0.3s");
+
+    /* True afterimage: Dash Return parks a footprint at the pre-snap position. */
+    {
+        TrailGhost ghosts[TRAIL_MAX_GHOSTS];
+        int n = TrailActiveGhosts(&pad.trail, TRAIL_MAX_GHOSTS, ghosts);
+        bool foundOrigin = false;
+        for (int i = 0; i < n; i++)
+            if (ghosts[i].pos.x == 50.0f && ghosts[i].pos.y == 200.0f) foundOrigin = true;
+        CHECK(foundOrigin, "dash leaves a ghost at the pre-snap position (200)");
+        /* A frame of UpdatePaddle with the trail marker live records the new spot. */
+        UpdatePaddle(&pad, &fx, 0, 0.1f, 540, &b);
+        n = TrailActiveGhosts(&pad.trail, TRAIL_MAX_GHOSTS, ghosts);
+        CHECK(n >= 2, "live dash trail records the destination on the next frame");
+    }
 
     AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);   /* Speed Boost */
     CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SPEED, 300.0f) == 600.0f, "speed boost x2");

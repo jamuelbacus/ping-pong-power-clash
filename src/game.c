@@ -4,6 +4,7 @@
 #include "abilities.h"
 #include "viewport.h"
 #include "visuals.h"
+#include "trail.h"
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -80,6 +81,12 @@ static void resetBall(Game* game) {
     ball->sizeMultiplier = 1.0f;
     ball->unpredictableBounce = false;
     ball->randomEffects = false;
+
+    /* A point boundary is a hard stop for afterimages: wipe both paddle rings
+     * and the ball ring so no ghost survives into the next point. */
+    TrailHistoryInit(&game->ball.trail);
+    TrailHistoryInit(&game->paddle.trail);
+    TrailHistoryInit(&game->player2Paddle.trail);
 }
 
 /* ---------------------------------------------------------------- gameplay */
