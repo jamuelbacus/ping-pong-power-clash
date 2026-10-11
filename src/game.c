@@ -3,6 +3,7 @@
 #include "layout.h"
 #include "abilities.h"
 #include "viewport.h"
+#include "visuals.h"
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -72,9 +73,6 @@ static void resetBall(Game* game) {
     ball->slowTimer = 0.0f;
     ball->lagTimer = 0.0f;
     ball->lateralVelocity = 0.0f;
-    ball->illusions = false;
-    ball->fakeBallActive = false;
-    ball->fakeBallPos = (Vector2){ 0.0f, 0.0f };
     ball->sizeMultiplier = 1.0f;
     ball->unpredictableBounce = false;
     ball->randomEffects = false;
@@ -112,6 +110,65 @@ static void updateGamePlay(Game* game, float deltaTime) {
 }
 
 /* ---------------------------------------------------------------- draw */
+
+/* Effect "juice", drawn AFTER the entities so auras tint over them (R22):
+ *  - ball trail: two velocity-offset ghost circles while STAT_TRAIL is live
+ *  - ball tint: translucent accent glow over the ball while any ball effect runs
+ *  - paddle aura + dash ghost rects + defender shield barrier per paddle
+ * Every pushed stat marker maps to a visible state here; nothing in the
+ * registry is draw-only-dead (see self-review in the task report). */
+static void DrawEffects(const Effects* fx, const Ball* ball, const Paddle* p1, const Paddle* p2) {
+    if (EffectTrailActive(fx, TARGET_BALL, -1)) {
+        Vector2 g1 = { ball->position.x - ball->velocity.x * 0.12f,
+                       ball->position.y - ball->velocity.y * 0.12f };
+        Vector2 g2 = { ball->position.x - ball->velocity.x * 0.24f,
+                       ball->position.y - ball->velocity.y * 0.24f };
+        float r = ball->radius * ball->sizeMultiplier;
+        DrawGlowCircle(g1, r, Fade(ball->color, 0.35f), 6.0f);
+        DrawGlowCircle(g2, r, Fade(ball->color, 0.20f), 6.0f);
+    }
+
+    Color ballTint = EffectTintColor(fx, TARGET_BALL, -1);
+    if (ballTint.a > 0) {
+        DrawGlowCircle(ball->position, ball->radius * ball->sizeMultiplier + 2.0f,
+                       Fade(ballTint, 0.4f), 8.0f);
+    }
+
+    for (int i = 0; i < 2; i++) {
+        const Paddle* p = (i == 0) ? p1 : p2;
+
+        /* Accent aura border while any timed effect boosts this paddle. */
+        Color tint = EffectTintColor(fx, TARGET_PADDLE, i);
+        if (tint.a > 0) {
+            Rectangle aura = { p->position.x - 4.0f, p->position.y - 4.0f,
+                               p->size.x + 8.0f, p->size.y + 8.0f };
+            DrawGlowRectLines(aura, 1.5f, tint, 6.0f);
+        }
+
+        /* Dash afterimage: two ghost rects lagging the movement (clamped so
+         * a high velocityY can't fling the ghosts off the arena). */
+        if (EffectTrailActive(fx, TARGET_PADDLE, i)) {
+            float off1 = p->velocityY * 0.05f;
+            float off2 = p->velocityY * 0.10f;
+            if (off1 > 10.0f) off1 = 10.0f; else if (off1 < -10.0f) off1 = -10.0f;
+            if (off2 > 16.0f) off2 = 16.0f; else if (off2 < -16.0f) off2 = -16.0f;
+            Color ghost = characters[p->charType].accent;
+            Rectangle g = { p->position.x, p->position.y - off1, p->size.x, p->size.y };
+            DrawGlowRect(g, Fade(ghost, 0.35f), 4.0f);
+            g.y = p->position.y - off2;
+            DrawGlowRect(g, Fade(ghost, 0.20f), 4.0f);
+        }
+
+        /* Defender shield barrier in front of the paddle's court face. */
+        if (ShieldActive(p)) {
+            float x = (p->position.x < 480.0f)
+                ? p->position.x + p->size.x + 4.0f
+                : p->position.x - 4.0f;
+            Rectangle barrier = { x, p->position.y, 2.0f, p->size.y };
+            DrawGlowRectLines(barrier, 2.0f, characters[DEFENDER].accent, 4.0f);
+        }
+    }
+}
 
 static void DrawMenu(const Game* game) {
     if (game->assets.logo.loaded) {
@@ -172,6 +229,7 @@ static void DrawGameplay(const Game* game) {
     DrawBall(&game->ball);
     DrawPaddle(game->paddle);
     DrawPaddle(game->player2Paddle);
+    DrawEffects(&game->effects, &game->ball, &game->paddle, &game->player2Paddle);
 
     Color p1 = characters[game->paddle.charType].accent;
     Color p2 = characters[game->player2Paddle.charType].accent;
@@ -208,6 +266,15 @@ static void DrawGameplay(const Game* game) {
                  "2", characters[right->charType].skills[1], right->skill2Cooldown, SKILL2_COOLDOWN, p2);
     DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 76, (int)HUD_P2.width - 16,
                  "3", characters[right->charType].skills[2], right->ultimateCooldown, ULTIMATE_COOLDOWN, p2);
+
+    /* Active-effect indicator: ONE glowing dot per player while any of their
+     * timed effects (or the Defender shield window) is live. Deliberately not
+     * a per-slot ability->effect map — the registry is the only source of
+     * truth, so this can never drift from what DrawEffects actually renders. */
+    if (PlayerHasActiveEffect(&game->effects, 0) || ShieldActive(&game->paddle))
+        DrawGlowCircle((Vector2){ HUD_P1.x + HUD_P1.width - 10.0f, HUD_P1.y + 10.0f }, 4.0f, p1, 6.0f);
+    if (PlayerHasActiveEffect(&game->effects, 1) || ShieldActive(&game->player2Paddle))
+        DrawGlowCircle((Vector2){ HUD_P2.x + HUD_P2.width - 10.0f, HUD_P2.y + 10.0f }, 4.0f, p2, 6.0f);
 }
 
 static void DrawGameOver(const Game* game) {

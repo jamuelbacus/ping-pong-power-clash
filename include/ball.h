@@ -33,9 +33,6 @@ typedef struct Ball {
     // Skill effect variables
     float slowTimer;
     float lateralVelocity; // curve bend: accumulates while STAT_BALL_CURVE is active, decays on expiry
-    bool illusions;
-    Vector2 fakeBallPos;
-    bool fakeBallActive;
     float sizeMultiplier;
     bool unpredictableBounce;
     float lagTimer;

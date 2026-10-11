@@ -14,14 +14,16 @@ Build and run from the **project root**:
 
 ```sh
 gcc tests/test_reset_ball.c \
-    src/theme.c src/viewport.c src/assets.c \
+    src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o tests/test_reset_ball
 ./tests/test_reset_ball
 ```
 
 Expected output: `RESULT: PASS ...` (exit code 0). It includes `src/game.c`
-directly to reach the file-static `updateGamePlay()`/`resetBall()`.
+directly to reach the file-static `updateGamePlay()`/`resetBall()`. `src/visuals.c`
+is in the recipe because `game.c`'s `DrawEffects`/HUD-dot code calls the pure
+visual-state queries (R22).
 
 The compiled `tests/test_reset_ball` binary is git-ignored.
 

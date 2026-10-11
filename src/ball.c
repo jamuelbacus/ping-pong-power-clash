@@ -36,9 +36,6 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
         .speedFactor = 1.0f,
         .slowTimer = 0.0f,
         .lateralVelocity = 0.0f,
-        .illusions = false,
-        .fakeBallPos = {0.0f, 0.0f},
-        .fakeBallActive = false,
         .sizeMultiplier = 1.0f,
         .unpredictableBounce = false,
         .lagTimer = 0.0f,
@@ -163,12 +160,7 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
 }
 
 void DrawBall(const Ball* ball) {
+    /* Trail ghosts are drawn by DrawEffects() from the STAT_TRAIL registry
+     * marker (R22) — the old fakeBallActive/illusions clutter is gone. */
     DrawGlowCircle(ball->position, ball->radius * ball->sizeMultiplier, ball->color, 8.0f);
-    if (ball->fakeBallActive) {
-        DrawGlowCircle(ball->fakeBallPos, ball->radius, Fade(ball->color, 0.6f), 4.0f);
-    }
-    if (ball->illusions) {
-        DrawGlowCircle((Vector2){ball->position.x + 20, ball->position.y}, ball->radius, Fade(ball->color, 0.7f), 4.0f);
-        DrawGlowCircle((Vector2){ball->position.x - 20, ball->position.y}, ball->radius, Fade(ball->color, 0.7f), 4.0f);
-    }
 }
