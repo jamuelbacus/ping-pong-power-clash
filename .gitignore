@@ -1,0 +1,8 @@
+# Private / local-only documents (never published)
+private/
+
+# Local native (Linux) build output
+# NOTE: the Windows build, game.exe, is intentionally tracked.
+/game
+*.o
+*.obj
