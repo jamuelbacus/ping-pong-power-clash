@@ -11,6 +11,12 @@
 
 #include <math.h>
 
+/* Extra margin added when pushing the ball clear of a paddle. Placing the ball
+ * center exactly at face +/- radius is a tangent position, which raylib still
+ * classifies as colliding (with vertical overlap), risking a re-hit and
+ * speedFactor creep on the next frame. Clear by epsilon past tangency instead. */
+static const float PADDLE_SEPARATION_EPSILON = 0.5f;
+
 static void CapVelocity(Vector2* velocity, float maxVelocity) {
     float speed = sqrt(velocity->x * velocity->x + velocity->y * velocity->y);
     if (speed > maxVelocity) {
@@ -92,11 +98,12 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
-        // Push the ball clear of the paddle on the side it approached so one
-        // contact produces exactly one bounce and one speedFactor step.
+        // Push the ball clear of the paddle on the outward face (the side is
+        // derived from the paddle's screen half) so one contact produces exactly
+        // one bounce and one speedFactor step.
         ball->position.x = (dirX > 0.0f)
-            ? paddle1->position.x + paddle1->size.x + ball->radius
-            : paddle1->position.x - ball->radius;
+            ? paddle1->position.x + paddle1->size.x + ball->radius + PADDLE_SEPARATION_EPSILON
+            : paddle1->position.x - ball->radius - PADDLE_SEPARATION_EPSILON;
     }
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
@@ -108,11 +115,12 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
-        // Push the ball clear of the paddle on the side it approached so one
-        // contact produces exactly one bounce and one speedFactor step.
+        // Push the ball clear of the paddle on the outward face (the side is
+        // derived from the paddle's screen half) so one contact produces exactly
+        // one bounce and one speedFactor step.
         ball->position.x = (dirX > 0.0f)
-            ? paddle2->position.x + paddle2->size.x + ball->radius
-            : paddle2->position.x - ball->radius;
+            ? paddle2->position.x + paddle2->size.x + ball->radius + PADDLE_SEPARATION_EPSILON
+            : paddle2->position.x - ball->radius - PADDLE_SEPARATION_EPSILON;
     }
 
     // Reflect any base-velocity mutation back into the effective velocity so

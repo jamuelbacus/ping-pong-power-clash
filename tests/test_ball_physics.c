@@ -1,6 +1,7 @@
 /* tests/test_ball_physics.c — includes ../src/game.c to reach resetBall */
 #include "../src/game.c"
 #include <stdio.h>
+#include <math.h>
 static int fails = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("FAIL: %s\n", m); fails = 1; } } while (0)
 
@@ -34,6 +35,23 @@ int main(void) {
     g.ball.velocity = (Vector2){0.0f, 0.0f};
     updateGamePlay(&g, 1.0f/60.0f);
     CHECK(!EffectsHas(&g.effects, TARGET_BALL, -1, STAT_BALL_SPEED), "effects expire through updateGamePlay");
+
+    /* paddle separation: one contact == exactly one bounce / speedFactor step.
+     * dt = 0 keeps the ball at its cleared position so a tangency-only "clear"
+     * would be re-detected as a collision on the second call. */
+    Ball sep;
+    InitBall(&sep, 75.0f, 250.0f, BALL_SIZE, -300.0f, 0.0f, BALL_COLOR);
+    Paddle lp, rp;
+    InitPaddle(&lp, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+    InitPaddle(&rp, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+    EffectsInit(&g.effects);
+    float f0 = sep.speedFactor;
+    UpdateBall(&sep, &g.effects, 0.0f, 960, 540, &lp, &rp);
+    UpdateBall(&sep, &g.effects, 0.0f, 960, 540, &lp, &rp);
+    CHECK(fabsf(sep.speedFactor - f0 * 1.005f) < 1e-6f,
+          "one paddle contact advances speedFactor exactly one step");
+    CHECK(sep.position.x > lp.position.x + lp.size.x + sep.radius,
+          "cleared ball is strictly past the paddle face, not tangent");
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;

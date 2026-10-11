@@ -59,7 +59,8 @@ static void resetBall(Game* game) {
     ball->velocity = ball->baseVelocity;
     ball->speedFactor = 1.0f;
 
-    /* Clear any ball-side skill effects so they don't linger across a point. */
+    /* Clear all active effects so nothing (ball- or paddle-targeted) lingers
+     * across a point. */
     EffectsClear(&game->effects);
     ball->slowTimer = 0.0f;
     ball->lagTimer = 0.0f;
