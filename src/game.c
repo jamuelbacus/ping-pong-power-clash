@@ -1,6 +1,7 @@
 #include "game.h"
 #include "theme.h"
 #include "layout.h"
+#include "abilities.h"
 #include "viewport.h"
 
 /* ---------------------------------------------------------------- helpers */
@@ -104,6 +105,10 @@ static void updateGamePlay(Game* game, float deltaTime) {
 
     UpdatePaddle(&game->paddle, &game->effects, 0, deltaTime, WINDOW_HEIGHT, &game->ball);
     UpdatePaddle(&game->player2Paddle, &game->effects, 1, deltaTime, WINDOW_HEIGHT, &game->ball);
+
+    if (game->player2Paddle.isCpu) {
+        CpuTickAbilities(&game->effects, &game->ball, &game->player2Paddle, 1, deltaTime);
+    }
 }
 
 /* ---------------------------------------------------------------- draw */

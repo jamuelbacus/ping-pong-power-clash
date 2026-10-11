@@ -34,6 +34,7 @@ typedef struct Paddle {
     float skill1Cooldown;
     float skill2Cooldown;
     float ultimateCooldown;
+    float cpuDecisionTimer;
     float skill1Timer;
     float skill2Timer;
     float ultimateTimer;
