@@ -13,7 +13,9 @@
 #define EFFECT_CAPACITY 64
 
 typedef enum { TARGET_BALL, TARGET_PADDLE } EffectTarget;
-typedef enum { STAT_BALL_SPEED, STAT_BALL_VEL_X, STAT_BALL_VEL_Y, STAT_BALL_SIZE, STAT_PADDLE_SPEED, STAT_PADDLE_SIZE, STAT_TRAIL, STAT_BALL_CURVE, STAT_PADDLE_IMMOVABLE } EffectStat;
+/* STAT_PADDLE_HEAT is the Speedster "Overdrive" heat scalar in [0,1]: Flow adds
+ * to it, Clutch SETs it, and UpdatePaddle reads the total through the sum. */
+typedef enum { STAT_BALL_SPEED, STAT_BALL_VEL_X, STAT_BALL_VEL_Y, STAT_BALL_SIZE, STAT_PADDLE_SPEED, STAT_PADDLE_SIZE, STAT_TRAIL, STAT_BALL_CURVE, STAT_PADDLE_IMMOVABLE, STAT_PADDLE_HEAT } EffectStat;
 typedef enum { OP_MUL, OP_ADD, OP_SET } EffectOp;
 
 typedef struct Effect { bool active; EffectTarget target; int paddleIndex; EffectStat stat; EffectOp op; float value; float timeLeft; float duration; Color color; int source; } Effect;

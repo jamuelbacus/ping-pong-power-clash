@@ -9,6 +9,9 @@
 #include "abilities.h"
 #include "theme.h"
 #include "trail.h"
+#include "overdrive.h"
+
+#include <math.h>
 
 void InitPaddle(Paddle* paddle, float x, float y, float width, float height, float speed, Color color, bool isCpu, float accel, float maxSpeed, float friction, int upKey, int downKey, CharacterType charType) {
     paddle->position = (Vector2){x, y};
@@ -85,7 +88,24 @@ void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime,
     }
 
     // Derive effective stats from base + active effects each frame.
-    paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SPEED, paddle->originalMaxSpeed);
+    if (paddle->charType == SPEEDSTER) {
+        // Speedster passive "Overdrive": the ball's effective speed this frame
+        // feeds one heat scalar in [0,1] (rally), which Flow stacks onto. Heat
+        // widens maxSpeed before the STAT_PADDLE_SPEED chain runs, so the
+        // existing multipliers still apply to the boosted base.
+        float ballSpeed = sqrtf(ball->velocity.x * ball->velocity.x
+                              + ball->velocity.y * ball->velocity.y);
+        float rally = (ballSpeed - BALL_SPEED_BASE) / BALL_SPEED_BASE;
+        if (rally < 0.0f) rally = 0.0f;
+        if (rally > 1.0f) rally = 1.0f;
+        float heat = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_HEAT, rally);
+        if (heat < 0.0f) heat = 0.0f;
+        if (heat > 1.0f) heat = 1.0f;
+        float base = paddle->originalMaxSpeed * (1.0f + OVERDRIVE_SPEED_PER_HEAT * heat);
+        paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SPEED, base);
+    } else {
+        paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SPEED, paddle->originalMaxSpeed);
+    }
     float effectiveHeight = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SIZE, paddle->originalSize.y);
     // Defender Iron Fortress maps STAT_PADDLE_IMMOVABLE onto the paddle here so
     // the immovable branches below always read the live effect state.

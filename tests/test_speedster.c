@@ -5,6 +5,8 @@
 #include "paddle.h"
 #include "character.h"
 #include "trail.h"
+#include "layout.h"
+#include "overdrive.h"
 #include <stdio.h>
 static int fails = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("FAIL: %s\n", m); fails = 1; } } while (0)
@@ -64,6 +66,83 @@ int main(void) {
           "afterimage speed lands at the ball's read index for paddleIndex=1");
     CHECK(EffectsHas(&fx2, TARGET_BALL, -1, STAT_TRAIL),
           "afterimage ball trail lands at the ball's read index for paddleIndex=1");
+
+    /* --- Overdrive: heat model + Flow (Task 4) --- */
+    {
+        Effects fx; EffectsInit(&fx);
+        Ball b; InitBall(&b, 480, 270, BALL_SIZE, 360.5551f, 0.0f, BALL_COLOR);  /* serve speed */
+        Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+
+        /* Rally: serve-speed ball -> heat 0 -> maxSpeed 500. */
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 499.99f && pad.maxSpeed < 500.01f, "serve-speed ball: heat 0, maxSpeed 500");
+
+        /* Rally: fast ball (2x base) -> heat 1 -> 500 * 1.5 = 750. */
+        b.velocity.x = 721.1102f; b.velocity.y = 0.0f;
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 749.9f && pad.maxSpeed <= 750.1f, "2x-speed ball: heat caps at 1 -> 750");
+
+        /* Rally clamps from above and from below. */
+        b.velocity.x = 900.0f; b.velocity.y = 0.0f;
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 749.9f && pad.maxSpeed <= 750.1f, "extremely fast ball still caps at 750");
+        b.velocity.x = 167.0f; b.velocity.y = 0.0f;
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 499.99f && pad.maxSpeed < 500.01f, "slow ball: rally floors at 0 -> 500");
+
+        /* Flow: Q pushes +0.35 heat and trims E's cooldown. */
+        pad.skill2Cooldown = SKILL2_COOLDOWN;                 /* 7s */
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0);    /* Dash Return */
+        CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) > 0.3499f &&
+              EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) < 0.3501f,
+              "Q arms 0.35 heat");
+        CHECK(pad.skill2Cooldown == 6.0f, "Q trims E's cooldown by 1s");
+        /* Heat at mid ball speed: 500 * (1 + 0.5*0.35) = 587.5. */
+        b.velocity.x = 360.5551f; b.velocity.y = 0.0f;
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 587.4f && pad.maxSpeed < 587.6f, "heat 0.35 -> maxSpeed 587.5");
+
+        /* E arms the same 0.35 heat (refresh), trims Q, and its x2 stacks. */
+        pad.skill1Cooldown = SKILL1_COOLDOWN;
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);    /* Speed Boost */
+        CHECK(pad.skill1Cooldown == 4.0f, "E trims Q's cooldown by 1s");
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);       /* heat 0.35 + x2 -> 1175 */
+        CHECK(pad.maxSpeed > 1174.9f && pad.maxSpeed < 1175.1f, "Speed Boost x2 stacks on heat (1175)");
+
+        /* Flow expires. */
+        EffectsUpdate(&fx, 1.6f);
+        CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) == 0.0f,
+              "flow heat expires");
+
+        /* Review focus 2: rally heat + flow heat must clamp at full heat (750),
+         * never sum past it (837.5). Wipe the still-live x2 Speed Boost first so
+         * this reads the heat clamp on its own. */
+        EffectsClear(&fx);
+        b.velocity.x = 900.0f; b.velocity.y = 0.0f;
+        EffectsPush(&fx, (Effect){ .active=true, .target=TARGET_PADDLE, .paddleIndex=0,
+            .stat=STAT_PADDLE_HEAT, .op=OP_ADD, .value=OVERDRIVE_FLOW_HEAT,
+            .timeLeft=OVERDRIVE_FLOW_DURATION, .duration=OVERDRIVE_FLOW_DURATION,
+            .color=BLUE, .source=0 });
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 749.9f && pad.maxSpeed <= 750.1f, "rally+flow clamps at full heat (750, never 837.5)");
+
+        /* Review focus 3: a sub-1s opposing cooldown trims to exactly 0, never
+         * below. (E's own skill2 assignment only happens on ability 1, so this
+         * Q trim on a 0.5s skill2 is clean.) */
+        pad.skill2Cooldown = 0.5f;
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0);   /* Q trims skill2Cooldown */
+        CHECK(pad.skill2Cooldown == 0.0f, "flow trim clamps at 0, never negative");
+    }
+
+    /* --- Overdrive: heat is a Speedster-only passive --- */
+    {
+        Effects fx; EffectsInit(&fx);
+        Ball b; InitBall(&b, 480, 270, BALL_SIZE, 721.1102f, 0.0f, BALL_COLOR);
+        Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(pad.maxSpeed > 499.99f && pad.maxSpeed < 500.01f,
+              "non-Speedster ignores heat entirely");
+    }
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;

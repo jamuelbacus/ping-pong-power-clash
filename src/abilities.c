@@ -7,6 +7,9 @@
 #include "abilities.h"
 #include "layout.h"
 #include "trail.h"
+#include "overdrive.h"
+
+#include <math.h>
 
 void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex, CharacterType type, int ability) {
     Color color = characters[type].accent;
@@ -34,12 +37,29 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
                         .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
                         .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f,
                         .timeLeft = 0.3f, .duration = 0.3f, .color = color, .source = source });
+                    /* Flow: the use itself banks Overdrive heat and trims the
+                     * other ability's cooldown, chaining Q -> E. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_PADDLE_HEAT, .op = OP_ADD, .value = OVERDRIVE_FLOW_HEAT,
+                        .timeLeft = OVERDRIVE_FLOW_DURATION, .duration = OVERDRIVE_FLOW_DURATION,
+                        .color = color, .source = source });
+                    if (paddle->skill2Cooldown > 0.0f)
+                        paddle->skill2Cooldown = fmaxf(0.0f, paddle->skill2Cooldown - OVERDRIVE_FLOW_TRIM);
                     break;
                 case 1: /* Speed Boost: doubled paddle speed for 4s. */
                     EffectsPush(fx, (Effect){
                         .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
                         .stat = STAT_PADDLE_SPEED, .op = OP_MUL, .value = 2.0f,
                         .timeLeft = 4.0f, .duration = 4.0f, .color = color, .source = source });
+                    /* Flow: same heat pulse, trimming the other side (Q). */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
+                        .stat = STAT_PADDLE_HEAT, .op = OP_ADD, .value = OVERDRIVE_FLOW_HEAT,
+                        .timeLeft = OVERDRIVE_FLOW_DURATION, .duration = OVERDRIVE_FLOW_DURATION,
+                        .color = color, .source = source });
+                    if (paddle->skill1Cooldown > 0.0f)
+                        paddle->skill1Cooldown = fmaxf(0.0f, paddle->skill1Cooldown - OVERDRIVE_FLOW_TRIM);
                     break;
                 case 2: /* Afterimage Hit: faster ball for 5s plus a 5s ball trail.
                          * Ball effects are always keyed at -1, the index the
