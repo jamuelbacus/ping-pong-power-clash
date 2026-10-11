@@ -70,9 +70,15 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
     ball->position.x += ball->velocity.x * deltaTime;
     ball->position.y += ball->velocity.y * deltaTime;
 
-    // Wall collision (mutate the base; effective velocity is re-derived below)
-    if(ball->position.y - ball->radius <= 0 || ball->position.y + ball->radius >= screenHeight) {
-        ball->baseVelocity.y *= -1;
+    // Wall collision (mutate the base; effective velocity is re-derived below).
+    // Clamp the position to the wall so the ball can never sink into or tunnel
+    // through it, and only reflect when actually travelling into the wall.
+    if(ball->position.y - ball->radius <= 0) {
+        if (ball->baseVelocity.y < 0) ball->baseVelocity.y *= -1;
+        ball->position.y = ball->radius;
+    } else if(ball->position.y + ball->radius >= screenHeight) {
+        if (ball->baseVelocity.y > 0) ball->baseVelocity.y *= -1;
+        ball->position.y = screenHeight - ball->radius;
     }
 
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle1->position.x, paddle1->position.y, paddle1->size.x, paddle1->size.y})) {
@@ -81,20 +87,32 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         float angle = (hitPos - 0.5f) * PI / 2;  // Max 90 degrees up/down
         float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
         float speed = baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
-        ball->baseVelocity.x = speed * cos(angle) * (paddle1->position.x < screenWidth / 2 ? 1 : -1);
+        float dirX = (paddle1->position.x < screenWidth / 2) ? 1.0f : -1.0f;
+        ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
+        // Push the ball clear of the paddle on the side it approached so one
+        // contact produces exactly one bounce and one speedFactor step.
+        ball->position.x = (dirX > 0.0f)
+            ? paddle1->position.x + paddle1->size.x + ball->radius
+            : paddle1->position.x - ball->radius;
     }
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
         float angle = (hitPos - 0.5f) * PI / 2;
         float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
         float speed = baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
-        ball->baseVelocity.x = speed * cos(angle) * (paddle2->position.x < screenWidth / 2 ? 1 : -1);
+        float dirX = (paddle2->position.x < screenWidth / 2) ? 1.0f : -1.0f;
+        ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
+        // Push the ball clear of the paddle on the side it approached so one
+        // contact produces exactly one bounce and one speedFactor step.
+        ball->position.x = (dirX > 0.0f)
+            ? paddle2->position.x + paddle2->size.x + ball->radius
+            : paddle2->position.x - ball->radius;
     }
 
     // Reflect any base-velocity mutation back into the effective velocity so
