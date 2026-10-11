@@ -8,6 +8,7 @@
 #include "paddle.h"
 #include "theme.h"
 #include "utils.h"
+#include "effects.h"
 
 #include <math.h>
 
@@ -23,6 +24,7 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
     *ball = (Ball){
         .position = {x, y},
         .velocity = {velX, velY},
+        .baseVelocity = {velX, velY},
         .radius = radius,
         .color = color,
         .speedFactor = 1.0f,
@@ -38,49 +40,40 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
     };
 }
 
-void UpdateBall(Ball* ball, float deltaTime, int screenWidth, int screenHeight, Paddle* paddle1, Paddle* paddle2) {
-    // Update effect timers
-    UpdateTimer(&ball->slowTimer, deltaTime);
-    UpdateTimer(&ball->lagTimer, deltaTime);
+/* Derive the effective velocity from baseVelocity plus active ball effects.
+ * STAT_BALL_SPEED scales the magnitude, then STAT_BALL_VEL_X/Y adjust each
+ * component. Called after any base-velocity mutation so `velocity` always
+ * reflects the current direction within the same frame. */
+static void ApplyBallEffects(Ball* ball, Effects* fx) {
+    ball->velocity = ball->baseVelocity;
 
-    // Apply effects
-    if (ball->slowTimer > 0) {
-        ball->velocity.x *= 0.8f;
-        ball->velocity.y *= 0.8f;
+    float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x
+                         + ball->baseVelocity.y * ball->baseVelocity.y);
+    if (baseSpeed > 0.0f) {
+        float speed = EffectsApply(fx, TARGET_BALL, -1, STAT_BALL_SPEED, baseSpeed);
+        float scale = speed / baseSpeed;
+        ball->velocity.x *= scale;
+        ball->velocity.y *= scale;
     }
 
-    // TODO: Fix lag effect not working properly
-    // TODO: Fix slow effect not working properly
-    // PROBLEM: Lag and slow effect staying even after timer ends
-    /* SOLUTION: 
-    if (ball->TIMERHERE <= 0) { // when timer ends
-        set ball->velocity to normal speed, (from where it left of) 
-    }
+    ball->velocity.x = EffectsApply(fx, TARGET_BALL, -1, STAT_BALL_VEL_X, ball->velocity.x);
+    ball->velocity.y = EffectsApply(fx, TARGET_BALL, -1, STAT_BALL_VEL_Y, ball->velocity.y);
+}
 
-    and 
+void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int screenHeight, Paddle* paddle1, Paddle* paddle2) {
+    // Curve is a lateral acceleration applied to the base (source of truth) direction.
+    ball->baseVelocity.x += ball->curveAngle * deltaTime;
 
-    if(ball->TIMERHERE > 0) { // when timer is active
-        use updatetimer to decrease timer
-        set ball->velocity to no speed or slowed speed.
-    }
-    */
-
-    // Apply curve effect
-    ball->velocity.x += ball->curveAngle * deltaTime;
-
-    // Handle lag effect
-    if (ball->lagTimer > 0) {
-        ball->velocity.x *= 0.9f;
-        ball->velocity.y *= 0.9f;
-    }
+    // Derive the effective velocity from base + active effects.
+    ApplyBallEffects(ball, fx);
 
     // Update position
     ball->position.x += ball->velocity.x * deltaTime;
     ball->position.y += ball->velocity.y * deltaTime;
 
-    // Wall collision
+    // Wall collision (mutate the base; effective velocity is re-derived below)
     if(ball->position.y - ball->radius <= 0 || ball->position.y + ball->radius >= screenHeight) {
-        ball->velocity.y *= -1;
+        ball->baseVelocity.y *= -1;
     }
 
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle1->position.x, paddle1->position.y, paddle1->size.x, paddle1->size.y})) {
@@ -88,8 +81,8 @@ void UpdateBall(Ball* ball, float deltaTime, int screenWidth, int screenHeight, 
         float hitPos = (ball->position.y - paddle1->position.y) / paddle1->size.y;  // 0 (top) to 1 (bottom)
         float angle = (hitPos - 0.5f) * PI / 2;  // Max 90 degrees up/down
         float speed = sqrt(ball->velocity.x * ball->velocity.x + ball->velocity.y * ball->velocity.y) * ball->speedFactor;
-        ball->velocity.x = speed * cos(angle) * (paddle1->position.x < screenWidth / 2 ? 1 : -1);
-        ball->velocity.y = speed * sin(angle);
+        ball->baseVelocity.x = speed * cos(angle) * (paddle1->position.x < screenWidth / 2 ? 1 : -1);
+        ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
     }
@@ -97,11 +90,15 @@ void UpdateBall(Ball* ball, float deltaTime, int screenWidth, int screenHeight, 
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
         float angle = (hitPos - 0.5f) * PI / 2;
         float speed = sqrt(ball->velocity.x * ball->velocity.x + ball->velocity.y * ball->velocity.y) * ball->speedFactor;
-        ball->velocity.x = speed * cos(angle) * (paddle2->position.x < screenWidth / 2 ? 1 : -1);
-        ball->velocity.y = speed * sin(angle);
+        ball->baseVelocity.x = speed * cos(angle) * (paddle2->position.x < screenWidth / 2 ? 1 : -1);
+        ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
         if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
     }
+
+    // Reflect any base-velocity mutation back into the effective velocity so
+    // callers (and the next frame) observe the post-collision direction now.
+    ApplyBallEffects(ball, fx);
 
     // Cap max speed
     CapVelocity(&ball->velocity, BALL_MAX_VELOCITY);

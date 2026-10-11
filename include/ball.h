@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include "raylib.h"
+#include "effects.h"
 
 static const float BALL_SIZE = 10.0f;
 static const float BALL_BASE_VELOCITY_X = 300.0f;
@@ -22,7 +23,8 @@ typedef struct Paddle Paddle; // forward declaration
 // Ball structure
 typedef struct Ball {
     Vector2 position;
-    Vector2 velocity;
+    Vector2 velocity;      // effective velocity used by physics (derived from baseVelocity)
+    Vector2 baseVelocity;  // source of truth for direction/speed; collisions and curve write here
     float radius;
     Color color;
     float speedFactor;
@@ -40,7 +42,7 @@ typedef struct Ball {
 } Ball;
 
 void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY, Color color);
-void UpdateBall(Ball* ball, float deltaTime, int screenWidth, int screenHeight, Paddle* paddle1, Paddle* paddle2);
+void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int screenHeight, Paddle* paddle1, Paddle* paddle2);
 void DrawBall(const Ball* ball);
 
 #endif // BALL_H

@@ -45,6 +45,7 @@ void InitGame(Game* game) {
     game->currentSelectingPlayer = 0;
     game->selectedChar[0] = SPEEDSTER;
     game->selectedChar[1] = SPEEDSTER;
+    EffectsInit(&game->effects);
 }
 
 static void resetBall(Game* game) {
@@ -55,6 +56,7 @@ static void resetBall(Game* game) {
 
     ball->position = BALL_POSITION;
     ball->velocity = (Vector2){ BALL_BASE_VELOCITY_X * dir, BALL_BASE_VELOCITY_Y };
+    ball->baseVelocity = ball->velocity;
     ball->speedFactor = 1.0f;
 
     /* Clear any ball-side skill effects so they don't linger across a point. */
@@ -72,7 +74,7 @@ static void resetBall(Game* game) {
 /* ---------------------------------------------------------------- gameplay */
 
 static void updateGamePlay(Game* game, float deltaTime) {
-    UpdateBall(&game->ball, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
+    UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
 
     if (game->ball.position.x < 0) {
         game->cpuScore++;
@@ -82,8 +84,8 @@ static void updateGamePlay(Game* game, float deltaTime) {
         resetBall(game);
     }
 
-    UpdatePaddle(&game->paddle, deltaTime, WINDOW_HEIGHT, &game->ball);
-    UpdatePaddle(&game->player2Paddle, deltaTime, WINDOW_HEIGHT, &game->ball);
+    UpdatePaddle(&game->paddle, &game->effects, 0, deltaTime, WINDOW_HEIGHT, &game->ball);
+    UpdatePaddle(&game->player2Paddle, &game->effects, 1, deltaTime, WINDOW_HEIGHT, &game->ball);
 }
 
 /* ---------------------------------------------------------------- draw */

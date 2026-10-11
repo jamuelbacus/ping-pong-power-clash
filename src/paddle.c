@@ -44,7 +44,7 @@ void InitPaddle(Paddle* paddle, float x, float y, float width, float height, flo
     paddle->deadeye = false;
 }
 
-void UpdatePaddle(Paddle* paddle, float deltaTime, int screenHeight, Ball* ball) {
+void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime, int screenHeight, Ball* ball) {
     if (paddle->isCpu) {
         // CPU controls: instant acceleration to max speed towards ball
         float targetY = ball->position.y;
@@ -111,13 +111,14 @@ void UpdatePaddle(Paddle* paddle, float deltaTime, int screenHeight, Ball* ball)
         }
     }
 
-    // Apply multipliers
-    paddle->maxSpeed = paddle->originalMaxSpeed * paddle->speedMultiplier;
+    // Derive effective stats from base + active effects each frame.
+    paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SPEED, paddle->originalMaxSpeed);
+    float effectiveHeight = EffectsApply(fx, TARGET_PADDLE, paddleIndex, STAT_PADDLE_SIZE, paddle->originalSize.y);
     if (paddle->immovable) {
         paddle->size = (Vector2){paddle->originalSize.x, (float)screenHeight};
         paddle->position.y = 0;
     } else {
-        paddle->size = (Vector2){paddle->originalSize.x * paddle->widthMultiplier, paddle->originalSize.y * paddle->sizeMultiplier};
+        paddle->size = (Vector2){paddle->originalSize.x, effectiveHeight};
     }
 
     // Skill activation

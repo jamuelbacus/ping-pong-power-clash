@@ -7,6 +7,7 @@
 #include "character.h"
 #include "assets.h"
 #include "utils.h"
+#include "effects.h"
 
 static const int WINDOW_WIDTH = 960;
 static const int WINDOW_HEIGHT = 540;
@@ -26,6 +27,7 @@ typedef struct Game {
     int currentSelectingPlayer;
     CharacterType selectedChar[2];
     Assets assets;
+    Effects effects;
 } Game;
 
 
