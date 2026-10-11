@@ -7,7 +7,6 @@
 #include "ball.h"
 #include "paddle.h"
 #include "theme.h"
-#include "utils.h"
 #include "effects.h"
 
 #include <math.h>
@@ -80,7 +79,8 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         // Angle-based bounce
         float hitPos = (ball->position.y - paddle1->position.y) / paddle1->size.y;  // 0 (top) to 1 (bottom)
         float angle = (hitPos - 0.5f) * PI / 2;  // Max 90 degrees up/down
-        float speed = sqrt(ball->velocity.x * ball->velocity.x + ball->velocity.y * ball->velocity.y) * ball->speedFactor;
+        float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
+        float speed = baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
         ball->baseVelocity.x = speed * cos(angle) * (paddle1->position.x < screenWidth / 2 ? 1 : -1);
         ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
@@ -89,7 +89,8 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
         float angle = (hitPos - 0.5f) * PI / 2;
-        float speed = sqrt(ball->velocity.x * ball->velocity.x + ball->velocity.y * ball->velocity.y) * ball->speedFactor;
+        float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
+        float speed = baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
         ball->baseVelocity.x = speed * cos(angle) * (paddle2->position.x < screenWidth / 2 ? 1 : -1);
         ball->baseVelocity.y = speed * sin(angle);
         ball->speedFactor *= 1.005f;
