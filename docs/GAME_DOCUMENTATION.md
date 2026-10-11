@@ -6,18 +6,18 @@
 | --- | --- |
 | Title | Ping Pong: Power Clash |
 | Genre | Arcade sports / competitive Pong with fighting-game-style abilities |
-| Platform | Desktop (Windows build committed; raylib is cross-platform) |
+| Platform | Desktop (cross-platform via raylib; a Windows build is committed, Linux builds from source) |
 | Language | C (C17) |
 | Framework | raylib 5.5 |
-| Window | 960 × 540, non-resizable, title "Ping Pong: Power Clash" |
+| Window | First opens at 1280 × 720, **resizable** (minimum 960 × 540), `F11` toggles fullscreen; the game renders to a fixed 960 × 540 virtual canvas that is letterboxed/scaled to the window (`FLAG_WINDOW_RESIZABLE`, `viewport.c`) |
 | Players | 1 (vs CPU) or 2 (local PvP) |
 | Win condition | First to **5** points (`WINNING_SCORE`) |
-| Current state | Playable prototype — core loop works, several systems are stubs/buggy |
+| Current state | Playable prototype — three characters fully implemented (Speedster, Grand Wizard, Defender); the rest are roster placeholders |
 
 ### Concept
 
 Ping Pong: Power Clash takes classic Pong and layers a roster of 8 characters on top. Each
-character has a distinct theme, playstyle, two regular skills, and an ultimate ability. The
+character has a distinct theme, playstyle, a skill 1, a skill 2, and an ultimate ability. The
 character you pick changes how you bend the ball, move your paddle, or disrupt your opponent.
 Matches are first-to-5, single arena, no power-ups on the field.
 
@@ -27,31 +27,78 @@ Matches are first-to-5, single arena, no power-ups on the field.
 
 ### The ball
 
-- Spawns at center (`480, 270`), radius `10`, red.
-- Base velocity `(300, 200)` px/s; hard speed cap of `800` px/s (`BALL_MAX_VELOCITY`).
-- Bounces off the top/bottom walls using angle-based reflection.
-- On a paddle hit, the bounce angle depends on **where** it struck the paddle (top edge →
-  steep up, center → flat, bottom edge → steep down). Each successful hit also increases an
-  internal `speedFactor` (×1.005 per hit, capped at 2.0) so rallies speed up over time.
-- A point is scored when the ball leaves the left or right edge.
+- Spawns at center (`480, 270`), radius `10` (`BALL_SIZE`), red (`BALL_COLOR`).
+- The ball has an authoritative **`baseVelocity`** (starts `(300, 200)` px/s —
+  `BALL_BASE_VELOCITY_X/Y`) and a derived effective **`velocity`**. Walls and paddles write to
+  `baseVelocity`; the effective velocity is re-derived from it every frame.
+- Hard speed cap of `800` px/s (`BALL_MAX_VELOCITY`); `CapVelocity` clamps the effective
+  velocity after every update.
+- Top/bottom wall bounces reflect `baseVelocity.y` and **clamp the position** back inside the
+  wall (`radius` from the edge), so the ball can never stick or tunnel through a wall.
+- On a paddle hit the bounce angle depends on **where** it struck the paddle: hit distance along
+  the paddle face maps to an angle up to ±90°. Each non-shielded hit also multiplies
+  `speedFactor` by `1.005` (capped at `2.0`) so rallies speed up over time. The new base magnitude
+  is derived from `baseVelocity` (never from an effect-scaled velocity), so timed speed effects
+  apply exactly once and are never baked into the base.
+- A **point** is scored when the ball leaves the left or right edge:
+  - right edge (`x > WINDOW_WIDTH`) → player 1 scores (`playerScore++`),
+  - left edge (`x < 0`) → player 2 / CPU scores (`player2Score++`),
+  - then `resetBall` re-serves by keeping the last horizontal direction, so the ball heads back
+    toward the side that just conceded.
+
+### Curve / lateral bend (Grand Wizard)
+
+- `Curve Spell` and `Arcane Chaos` push a `STAT_BALL_CURVE` acceleration into the effects
+  registry. While active, `UpdateBall` accumulates it into `Ball::lateralVelocity` each frame.
+- The bend is applied to the effective `velocity` **only** — `baseVelocity` stays authoritative
+  for wall bounces, so a timed effect can never leave permanent state behind.
+- When the effect expires the bend **decays back to zero** at `CURVE_DECAY_RATE` (400 px/s per
+  second). A paddle hit resets the bend instantly.
+- Known limitation: the bend currently always accumulates toward `+X` (sign is hard-coded);
+  sign control is a follow-up.
 
 ### The paddles
 
-- Size `20 × 100`, positioned left (`x = 50`) and right (`x = 890`).
-- Movement is **instant**: the paddle snaps to `maxSpeed` (500 px/s) on key press and stops
-  immediately on release. Acceleration/friction fields exist but are not applied.
-- CPU paddle tracks the ball's Y position directly at its own max speed (250 px/s).
+- Size `20 × 100` (`PADDLE_WIDTH × PADDLE_HEIGHT`), positioned left at `(50, 200)` and right at
+  `(890, 200)`.
+- Movement snaps to a max speed on key press and stops instantly on release: player 1 `maxSpeed`
+  is 500 px/s, player 2 / CPU 250 px/s. The `accel` / `friction` tuning fields are stored but not
+  used by movement (`UpdatePaddle` sets `velocityY = ±maxSpeed`).
+- CPU paddles track the ball's Y position directly at `maxSpeed`.
+- `UpdatePaddle` **derives effective stats from the effects registry every frame**:
+  `maxSpeed` from any `STAT_PADDLE_SPEED` effect, paddle height from any `STAT_PADDLE_SIZE`
+  effect (both relative to `originalMaxSpeed` / `originalSize`), and `immovable` from a live
+  `STAT_PADDLE_IMMOVABLE` marker. Paddles are kept inside the arena (clamped to `screenHeight`).
+- Paddle collisions **separate** the ball by an epsilon past the paddle face, so one contact
+  produces exactly one bounce and one `speedFactor` step (no re-trigger on the next frame).
 
 ### The arena
 
-- Plain white background, black center line at `x = 480`.
-- Scores drawn at the top quarters; character names and a skill HUD at the bottom.
+- Dark neon theme (`theme.c`): deep indigo-black background (`THEME_BG`), a dim violet 40 px grid
+  with a slow horizontal drift, a soft radial glow at center, and additive "glow" primitives for
+  panels, lines, circles, and text.
+- A bright center line at `x = 480`; scores are drawn at the top quarters, character names
+  beneath them; each player's skill HUD panel sits at the bottom (`HUD_P1 {10, 430, 230, 100}`,
+  `HUD_P2 {720, 430, 230, 100}`).
+- Rendering is unpremultiplied in the 960 × 540 virtual canvas; the presenter (`viewport.c`)
+  letterboxes it into the real window with black bars and maps the mouse back into virtual
+  coordinates (`GetVirtualMouse`).
 
-### Scoring & winning (intended)
+### Scoring & winning
 
-- Ball off the **right** edge → player 1 scores.
-- Ball off the **left** edge → player 2 (or CPU) scores.
-- First to 5 → win screen. *(Currently broken — see §6.)*
+- Ball off the **right** edge → player 1 scores; off the **left** edge → player 2 (or CPU) scores.
+- First to **5** (`WINNING_SCORE`) wins. The moment either score reaches 5 the match is frozen:
+  `updateGamePlay` stops simulating and `gameState` becomes `GAME_OVER`.
+- At `GAME_OVER` the current match scene (scoreboard, HUD, effect juice) stays drawn — the
+  simulation is halted, so nothing moves — with a winner banner overlaid
+  (PvP: "Player 1 Wins!" / "Player 2 Wins!"; CPU: "You Win!" / "CPU Wins!"):
+  - `SPACE` → back to the main menu,
+  - `R` → "rematch": `ResetGame` zeroes both scores, `resetBall` restores the ball, clears all
+    effects and armed shield windows, and returns to the **menu** (a fresh match starts from there).
+- `resetBall` awards exactly **one** point per miss, repositions the ball to center, resets
+  `baseVelocity` (direction kept toward the conceding side), resets `speedFactor` to `1.0`, clears
+  the full effects registry, and disarms both paddles' Defender shield windows (`shieldTimer = 0`)
+  so **nothing lingers across a point** (R23).
 
 ---
 
@@ -71,49 +118,69 @@ Eight characters are defined in `src/character.c` and indexed by the `CharacterT
 | 6 | Sniper | Sharpshooter, archer | Accuracy-based | Perfect Angle | Piercing Shot | Deadeye | Rewards skill | High skill ceiling |
 | 7 | Chaos Bot | Glitched AI, broken machine | Unpredictable | Glitch Bounce | Lag Spike | System Error | Unpredictable fun | Unreliable control |
 
-### Skill implementation status
+### Implemented abilities (Speedster, Grand Wizard, Defender)
 
-The skill *cooldown/timer plumbing* is implemented in `src/paddle.c`, but many individual
-effects are **cosmetic only** — the field they set is never read by the physics or drawing code.
+Three characters have fully wired abilities through the effects registry (`src/abilities.c`).
+`AbilitiesActivate` owns each ability's cooldown and pushes the effects that physics/rendering
+consume. All values below are the literal constants from the code.
 
-| Character | Skill 1 effect (code) | Skill 2 effect (code) | Ultimate effect (code) | Works? |
-| --- | --- | --- | --- | --- |
-| Speedster | teleport paddle to ball Y | `speedMultiplier = 2` | `ball.illusions = true` (drawn) | Partial |
-| Power Striker | sets `smashShotReady` | sets `heavyPaddle` | adds `+200` to `velocity.y` | Partial (ult works; flags dead) |
-| Grand Wizard | sets `ball.curveAngle = 100` | sets `ball.slowTimer` | sets `ball.randomEffects` | Partial (curve/slow buggy) |
-| Trickster | fake ball spawned (drawn) | reverses `velocity.x` | sets `mirrorField` | Partial |
-| Defender | sets `shieldBlock` | `sizeMultiplier = 2` | `immovable = true` (paddle spans height) | Partial |
-| Elementalist | `velocity.x *= 1.5` | sets `ball.slowTimer` | `velocity.x *= 2` | Partial (slow buggy) |
-| Sniper | (no-op) | sets `piercingShot` | sets `deadeye` | Mostly dead |
-| Chaos Bot | sets `unpredictableBounce` | sets `ball.lagTimer` | sets `ball.randomEffects` | Partial (lag buggy) |
+| Character | Ability (key) | Cooldown | Effect |
+| --- | --- | --- | --- |
+| **Speedster** | Dash Return (`Q`) | 5 s | Instantly snaps the paddle's Y onto the ball's Y; leaves a **paddle** `STAT_TRAIL` marker for 0.3 s (afterimage ghosts) |
+| | Speed Boost (`E`) | 7 s | `STAT_PADDLE_SPEED` × 2 for 4 s (paddle max speed doubles) |
+| | Afterimage Hit (`R`) | 15 s | `STAT_BALL_SPEED` × 1.35 for 5 s + **ball** `STAT_TRAIL` for 5 s (ghost trail behind the ball) |
+| **Grand Wizard** | Curve Spell (`Q`) | 5 s | `STAT_BALL_CURVE` SET 220 for 3 s — a lateral bend that accumulates into `ball.lateralVelocity` (+X), on top of the effective velocity only |
+| | Time Slow (`E`) | 7 s | `STAT_BALL_SPEED` × 0.5 for 2 s |
+| | Arcane Chaos (`R`) | 15 s | `STAT_BALL_CURVE` SET 400 for 5 s (stronger bend; same registry key as Curve Spell, so re-casting refreshes it) |
+| **Defender** | Shield Block (`Q`) | 5 s | Arms a 5 s reflect window (`paddle->shieldTimer`). The next hit that strikes this paddle reflects at base speed × 1.3 (`DEFENDER_SHIELD_REFLECT_MULT`) and **skips** the ×1.005 `speedFactor` creep; the window is consumed on hit and decays over time if unused |
+| | Wide Paddle (`E`) | 7 s | `STAT_PADDLE_SIZE` × 1.8 for 4 s (paddle height, derived through `UpdatePaddle`) |
+| | Iron Fortress (`R`) | 15 s | `STAT_PADDLE_SIZE` SET `FORTRESS_PADDLE_HEIGHT` (540) + `STAT_PADDLE_IMMOVABLE` for 5 s — the paddle locks to full arena height and becomes immovable (`UpdatePaddle` derives `immovable` from the marker every frame) |
 
-> Fields that are **written but never consumed** ("dead flags"): `ball.unpredictableBounce`,
-> `ball.randomEffects`, `ball.sizeMultiplier`, `paddle.heavyPaddle`, `paddle.smashShotReady`,
-> `paddle.shieldBlock`, `paddle.piercingShot`, `paddle.deadeye`, `paddle.mirrorField`,
-> `paddle.widthMultiplier`.
+Notes:
+
+- **Ball-targeted effects are keyed at `paddleIndex = -1`** — the index the ball reads
+  regardless of which player activated the ability; ownership is tracked in the effect's
+  `.source` so each player's HUD dot lights up correctly.
+- `EffectsPush` **full-replaces** an existing slot that matches `(target, paddleIndex, stat,
+  source)`, so re-casting an ability makes the latest activation authoritative (even if the
+  operation differs, e.g. Wide Paddle then Iron Fortress).
+- `EffectsApply` composes all matching MULs → all ADDs → the first SET; when the last effect
+  of a kind expires, the stat returns to its base value **exactly**.
+- Rendering is purely query-driven: ball tint/auras/trails and the defender shield barrier are
+  drawn from the registry (see §5, `visuals.c`).
 
 ### CPU ability usage
 
-The CPU rolls a random chance each frame to fire a skill:
-skill 1 = `GetRandomValue(0,1000) < 5`, skill 2 = `< 3`, ultimate = `< 1`.
-Because this is a *per-frame* roll (~60×/s), even the "rare" ultimate fires often in practice.
+The CPU (`CpuTickAbilities`, `src/abilities.c`) runs on a **decision interval**, not per-frame:
+
+- A decision tick happens at most every `CPU_DECISION_INTERVAL` (1 s).
+- Per tick **at most one** ability may fire, gated on (a) the ball actually approaching the CPU
+  paddle, and (b) a single `CPU_DIFFICULTY` roll (`0.5` = 50% chance).
+- Among ready abilities it prefers the strongest: ultimate (2) > skill 2 (1) > skill 1 (0).
+- The decision timer resets to the interval after every tick (whether or not anything fired), so
+  it never drifts negative or accumulates.
 
 ---
 
 ## 4. Controls
 
-| Action | Player 1 | Player 2 (PvP) |
+| Action | Player 1 (left) | Player 2 (right, PvP) |
 | --- | --- | --- |
-| Move up / down | `W` / `S` | `↑` / `↓` |
-| Skill 1 (5 s cooldown) | `Q` | `Numpad 1` |
-| Skill 2 (7 s cooldown) | `E` | `Numpad 2` |
-| Ultimate (15 s cooldown) | `R` | `Numpad 3` |
-| Menu / character select | Left mouse | Left mouse |
+| Move paddle up / down | `W` / `S` | `↑` / `↓` |
+| Skill 1 | `Q` | `Numpad 1` |
+| Skill 2 | `E` | `Numpad 2` |
+| Ultimate | `R` | `Numpad 3` |
+| Menu / character select | Left mouse button | Left mouse button |
+| Game over → back to menu | `SPACE` | `SPACE` |
+| Game over → rematch (returns to menu) | `R` | `R` |
+| Toggle fullscreen (any state) | `F11` | `F11` |
 
-Skill durations: skill 1 = 3 s, skill 2 = 4 s, ultimate = 5 s.
+Cooldowns: skill 1 = 5 s, skill 2 = 7 s, ultimate = 15 s (`layout.h`). Durations are
+per-ability as listed in §3.
 
-> Player 2's keys are chosen at runtime by paddle X position (`x > 480` → numpad). This is
-> fragile and keyboard-layout dependent.
+> Player 2's ability keys are chosen at runtime by paddle X position (`paddle->position.x >
+> 480` → numpad). Because the pads are always on the same halves this is stable in practice, but
+> the numpad dependence is worth keeping in mind for keyboards without one.
 
 ---
 
@@ -124,130 +191,175 @@ Skill durations: skill 1 = 3 s, skill 2 = 4 s, ultimate = 5 s.
 ```
 MENU ──click "Player vs CPU"/"Player vs Player"──▶ CHARACTER_SELECT
 CHARACTER_SELECT ──pick character(s)──▶ PLAY_CPU  or  PLAY_PVP
+PLAY_CPU / PLAY_PVP ──score reaches WINNING_SCORE──▶ GAME_OVER
+GAME_OVER ──SPACE──▶ MENU
+GAME_OVER ──R (ResetGame)──▶ MENU
 ```
 
-- `MENU`: logo + two mode buttons.
-- `CHARACTER_SELECT`: 4×2 grid of the 8 characters; PvP asks for both players, CPU mode picks
-  a random CPU character after player 1 chooses.
-- `PLAY_CPU` / `PLAY_PVP`: live match.
+| State | Behaviour |
+| --- | --- |
+| `MENU` | Logo + two mode buttons. Mouse click sets CPU/PvP mode and moves to `CHARACTER_SELECT`. |
+| `CHARACTER_SELECT` | 4 × 2 grid of the 8 characters (icons from `assets/characters/*.png`, glow-circle fallback if missing). PvP asks both players ("PLAYER 1" then "PLAYER 2"); CPU mode picks a random CPU character after player 1 chooses and jumps straight to `PLAY_CPU`. |
+| `PLAY_CPU` / `PLAY_PVP` | Live match: `EffectsUpdate` → win check → `UpdateBall` → scoring/`resetBall` → `UpdatePaddle` ×2 → `CpuTickAbilities` (CPU only). |
+| `GAME_OVER` | Simulation frozen (`updateGamePlay` returns before physics); winner banner + prompt drawn over the last frame. |
 
 ### Main loop (`src/main.c`)
 
 ```c
-InitWindow(...);
-InitGame(&game);
+SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+InitWindow(1280, 720, WINDOW_TITLE);
+SetWindowMinSize(WINDOW_WIDTH, WINDOW_HEIGHT);   // 960 x 540
+SetTargetFPS(60);
 while (!WindowShouldClose()) {
+    if (IsKeyPressed(KEY_F11)) ToggleFullscreen();
     float dt = GetFrameTime();
     UpdateGame(&game, dt);
-    BeginDrawing();
-    ClearBackground(WHITE);
+    BeginViewport(&viewport);          // 960 x 540 render target
+    ClearBackground(THEME_BG);
     DrawGame(&game);
-    EndDrawing();
+    EndViewport(&viewport);            // letterboxed presentation + mouse mapping
 }
-UnloadTexture(game.logo);
-CloseWindow();
 ```
 
 ### Module responsibilities
 
 | File | Responsibility |
 | --- | --- |
-| `src/main.c` | Window setup, main loop, texture unload |
-| `src/game.c` | Game state machine, scene update/draw, scoring, `resetBall`, `ResetGame` |
-| `src/ball.c` | Ball init, physics (`UpdateBall`), rendering, effects, velocity cap |
-| `src/paddle.c` | Paddle init, movement, CPU AI, skill/cooldown system, rendering |
-| `src/character.c` | Roster data (`characters[8]`) |
+| `src/main.c` | Window setup (resizable, min size, 60 FPS), main loop, F11 fullscreen, viewport present |
+| `src/game.c` | State machine, scene update/draw, scoring + `resetBall`, `ResetGame`, `DrawEffects` juice rendering |
+| `src/ball.c` | Ball init, physics (`UpdateBall`: curve accumulation/decay, wall/paddle collisions, velocity derivation + cap), drawing |
+| `src/paddle.c` | Paddle init, movement, CPU tracking, cooldowns, shield decay, effective-stat derivation (`maxSpeed`/size/`immovable`), player ability input, drawing |
+| `src/abilities.c` | `AbilitiesActivate` (cooldown + effect push per character/ability) and the CPU decision policy `CpuTickAbilities` |
+| `src/effects.c` | Fixed 64-slot timed effect registry: push (refresh-first), update/expiry, `EffectsApply` (MUL→ADD→SET), queries |
+| `src/visuals.c` | Pure visual-state queries over the registry (`EffectTintColor`, `EffectTrailActive`, `PlayerHasActiveEffect`, `ShieldActive`) — no drawing, unit-testable |
+| `src/character.c` | Roster data (`characters[8]`: names, themes, playstyles, skills, accents) |
+| `src/theme.c` | Neon palette + glow drawing primitives + background grid |
+| `src/viewport.c` | Fixed-resolution render target, letterboxed presentation, `GetVirtualMouse` |
+| `src/assets.c` | Texture loading with graceful fallback (logo + 8 character icons) |
 | `src/utils.c` | `UpdateTimer` helper |
-| `include/*.h` | Structs, enums, tuning constants, prototypes, vendored raylib headers |
+| `include/layout.h` | Named UI layout constants (menu buttons, char-grid rects, HUD rects, cooldown maxima) shared by draw code and hit-tests |
 
 ### Key data structures
 
-- `Game` (`game.h`): owns both paddles, the ball, both scores, current state, selection state, logo.
-- `Ball` (`ball.h`): position/velocity/radius/color + effect state (`slowTimer`, `curveAngle`,
-  `illusions`, `fakeBall*`, `sizeMultiplier`, `unpredictableBounce`, `lagTimer`, `randomEffects`).
-- `Paddle` (`paddle.h`): transform + movement tuning + full skill/cooldown/effect state + `charType`.
-- `Character` (`character.h`): fixed-size `char` arrays for name/theme/playstyle/skills/strength/weakness.
+- `Game` (`include/game.h`): owns both paddles, the ball, both scores (`playerScore`,
+  `player2Score`), `gameState`, selection state, assets, and the `Effects` registry.
+- `Ball` (`include/ball.h`): `position`, `baseVelocity` (source of truth — collisions write
+  here), `velocity` (derived effective value physics moves by), `radius`, `color`, `speedFactor`
+  (rally creep, ×1.005 per non-shielded hit, cap 2.0), `lateralVelocity` (curve bend).
+  `Effects` applies on top through `STAT_BALL_SPEED` / `STAT_BALL_VEL_X/Y` / `STAT_BALL_SIZE`
+  / `STAT_BALL_CURVE` / `STAT_TRAIL`.
+- `Effects` (`include/effects.h`): fixed 64-slot array of `Effect` entries; each entry keys
+  `(target, paddleIndex, stat, op(eration), value, timeLeft/duration, color, source)`.
+- `Paddle` (`include/paddle.h`): transform + movement basics, `maxSpeed` base, cooldowns,
+  `cpuDecisionTimer`, `shieldTimer` (armed reflect window), `immovable` (derived per frame from
+  `STAT_PADDLE_IMMOVABLE`), `originalSize`/`originalMaxSpeed` (the bases effects scale from),
+  plus legacy dead fields (see §6).
+- `Character` (`include/character.h`): fixed-size `char` arrays for name/theme/playstyle/3
+  skills/strength/weakness + neon `accent` color.
 
 ### Data flow
 
 ```
-input (keyboard/mouse)
+input (keyboard / mouse / CPU policy)
         │
         ▼
-UpdateGame ──▶ UpdateBall ──▶ collisions (walls, paddle1, paddle2) ──▶ effects
-        │                │
-        │                └─▶ score check → resetBall
-        ▼
-UpdatePaddle ×2 ──▶ movement + cooldowns + skill triggers + timers
+UpdateGame ──▶ EffectsUpdate (expire timed effects)
         │
-        ▼
-DrawGame ──▶ DrawMenu / DrawCharacterSelect / DrawGameplay + HUD
+        ├─▶ win check (≥5) ──▶ GAME_OVER (freeze)
+        │
+        ├─▶ UpdateBall ──▶ curve accumulate/decay ──▶ walls + paddle1 + paddle2
+        │        │            (collisions write baseVelocity; shield paths skip creep)
+        │        └─▶ out of bounds ──▶ score++ → resetBall (effects + shields cleared)
+        │
+        ├─▶ UpdatePaddle ×2 ──▶ cooldowns / shield decay / derived stats / input / move
+        │
+        └─▶ CpuTickAbilities (decision interval, one roll, ult-first, approach-gated)
+
+DrawGame ──▶ DrawMenu / DrawCharacterSelect / DrawGameplay
+                 └─▶ DrawHUD + DrawEffects (registry-driven tints, trails, shield barrier, dots)
 ```
 
 ---
 
 ## 6. Current state & known issues
 
-The game is an **early prototype**. The menu → select → match flow runs, paddles move, the ball
-bounces, and the skill/cooldown framework is in place. However it is not yet a complete game.
+The game is a playable prototype: menu → select → match → game-over → menu flow works, three
+characters' abilities are fully wired, and rendering is registry-driven. Issues fixed along the
+way (now resolved and guarded by regression tests in `tests/`):
 
-### Critical
+**Resolved**
 
-1. **Scoring never resets the ball.** `resetBall()` in `src/game.c` is a no-op — it declares a
-   local `velX` and never assigns anything. Once the ball leaves the screen it stays out of
-   bounds, so the score increments **every frame** until it instantly reaches the win threshold.
-   This makes a real match impossible.
-2. **No game-over state.** `UpdateGame` keeps simulating the match even after a score reaches
-   `WINNING_SCORE`; only the *drawing* switches to the win text. The ball keeps ticking and the
-   score keeps climbing behind it.
-3. **Win text is wrong in PvP** — it always says "CPU Wins!" for player 2.
+1. **Scoring / `resetBall` bug** — the ball is recentered on every miss, exactly one point is
+   awarded, effects and paddle shield windows are cleared across points. (`test_reset_ball`)
+2. **No game-over state** — `GAME_OVER` freezes simulation; `SPACE` → menu, `R` → reset.
+   (`test_game_over`)
+3. **PvP win text** — winner banner derives from `GameWinner` + `isCpu`, so CPU/PvP wording is
+   correct.
+4. **Slow/lag effects never expire** — replaced by the timed effects registry over an
+   authoritative `baseVelocity`; expiry restores base exactly.
+5. **Skills as dead flags** — Speedster / Grand Wizard / Defender abilities push registry effects
+   that physics and rendering consume.
+6. **Wall/paddle collision artifacts** — wall bounces clamp position; paddle hits separate the
+   ball (one contact = one bounce/creep step).
+7. **`ResetGame` never called** — wired to `R` at game over.
+8. **`cpuScore` naming** — renamed to `player2Score`. (`isCpu` stays.)
+9. **Hard-coded UI coordinates** — moved to named `layout.h` constants.
+10. **Per-frame CPU rolls** — replaced by the decision-interval policy.
+11. **No `SetTargetFPS`** — fixed at 60; window is resizable with F11 fullscreen and a neon theme.
 
-### High
+**Remaining / follow-up**
 
-4. **Slow/lag effects are permanent** (the WIP commit's known issue). `UpdateBall` multiplies
-   `velocity` by `0.8` (slow) / `0.9` (lag) *every frame* while the timer runs and never restores
-   the pre-effect velocity, so the ball never recovers its speed. No "base velocity" is stored.
-5. **Skills are largely dead flags.** See §3 — most effects set fields nothing reads.
-6. **Wall collision doesn't reposition the ball.** Velocity flips but position isn't clamped,
-   allowing the ball to stick at a wall and flip repeatedly.
-7. **Paddle collision doesn't separate the ball.** Overlapping frames can re-trigger the bounce
-   and re-multiply `speedFactor`.
-
-### Medium / low
-
-8. `ResetGame` is defined but never called; no pause, rematch, or return-to-menu after a win.
-9. Logo is loaded by relative path — fails (silently, width 0) if CWD isn't the repo root.
-10. Dead tuning fields: `paddle.speed`, `accel`, `friction`; movement ignores them.
-11. PvP player 2 is still named `cpuScore`/`isCpu` throughout the code.
-12. Hard-coded UI coordinates instead of named layout constants.
-13. CPU skill chance is a per-frame roll, making "rare" ultimates frequent.
-14. No audio at all (no sounds/music loaded).
-15. No `SetTargetFPS`; framerate is uncapped (physics are `deltaTime`-based, so it's stable,
-    but CPU/power use is unbounded).
-
-### Suggested fix order
-
-1. Implement `resetBall` (center ball, restore base velocity, clear effect state, reset `speedFactor`).
-2. Add a `GAME_OVER` / win state; stop simulation, allow rematch.
-3. Store base ball velocity; make slow/lag multiplicative *relative to base* and restore on expiry.
-4. Clamp ball position on wall/paddle collisions and separate on hit.
-5. Wire up or remove the dead skill flags.
-6. Fix PvP win text and naming.
+- **Legacy dead fields** still live in the structs (placeholders for unimplemented characters).
+  In `Ball`: `slowTimer`, `sizeMultiplier`, `unpredictableBounce`, `lagTimer`, `randomEffects` —
+  only zeroed/initialized, never consumed by physics (rendering reads `sizeMultiplier`, which no
+  live effect modifies). In `Paddle`: `speed`, `accel`, `friction`, `skill1Timer`,
+  `skill2Timer`, `ultimateTimer`, `skill1Active`, `skill2Active`, `ultimateActive`,
+  `speedMultiplier`, `sizeMultiplier`, `mirrorField`, `heavyPaddle`, `smashShotReady`,
+  `piercingShot`, `widthMultiplier`, `deadeye`. Removing them is cleanup, not gameplay work.
+- **Ability balance & feel** — tuning is deliberately conservative; numbers, durations, and the
+  CPU difficulty (50%) are all constants that need play-testing.
+- **Curve direction** — the lateral bend always accumulates toward `+X`; making the sign follow
+  the caster or velocity is a candidate follow-up.
+- **Other characters** — Power Striker, Trickster, Elementalist, Sniper, Chaos Bot are defined as
+  data (names/themes/accents) but have **no ability bodies** yet; their selector cards render and
+  play with no skills.
+- **Cosmetic notes** — no audio yet (`assets/audio` is an empty placeholder); the logo and
+  character icons load by relative path (run from the repo root); `accel` / `friction` / `speed`
+  tuning fields are unused by movement.
 
 ---
 
 ## 7. Build & assets
 
 See [`../README.md`](../README.md) for build commands and
-[`TECHNICAL_ANALYSIS.md`](TECHNICAL_ANALYSIS.md) for the full list of files that are still
-needed (build system, VS Code tasks, `.gitignore`, platform-appropriate raylib).
+[`TECHNICAL_ANALYSIS.md`](TECHNICAL_ANALYSIS.md) for environment/platform notes.
+`tests/README.md` documents the headless regression suites and their exact build recipes.
 
-**Runtime assets**
+### Game build (Linux/macOS, raylib via pkg-config)
 
-| File | Size | Used? |
-| --- | --- | --- |
-| `pingpongpowerclashlogo.png` | 2048 × 2048 | Yes — menu logo, scaled to 250 px wide |
-| `ref/pingpongpowerclashrefmenuscreen.png` | 1536 × 1024 | No — design reference only |
-| `lib/raylib.dll` | — | Yes on Windows (dynamic link) |
+```sh
+gcc src/*.c -Iinclude $(pkg-config --cflags --libs raylib) -lm -o game
+./game
+```
 
-No fonts, sounds, or sprites are loaded; all other visuals are raylib primitives.
+`main.c` opens a **resizable** window (min 960 × 540), targets 60 FPS, toggles fullscreen on
+`F11`, and presents the 960 × 540 virtual canvas letterboxed.
+
+### Headless tests
+
+All tests live in `tests/` and build outside `src/` (see `tests/README.md` for recipes and
+expected `RESULT: PASS` output). The suites cover the effects registry, effective-stat
+derivation, ball physics, reset/scoring, game-over behaviour, CPU policy, each implemented
+character, and the visual-state queries.
+
+### Runtime assets
+
+| File(s) | Used? |
+| --- | --- |
+| `pingpongpowerclashlogo.png` | Yes — menu logo, scaled to 250 px wide |
+| `assets/characters/*.png` (8 icons) | Yes — character-select cards, tinted by accent; graceful glow-circle fallback if missing |
+| `ref/pingpongpowerclashrefmenuscreen.png` | No — design reference only |
+| `lib/raylib.dll` (+ import/static libs) | Windows build only |
+| `assets/audio|backgrounds|fonts|ui/` | Placeholders (`.gitkeep`) — no audio/fonts loaded yet |
+
+All other visuals are raylib primitives (neon glow shapes).
