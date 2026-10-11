@@ -48,8 +48,25 @@ void InitGame(Game* game) {
 }
 
 static void resetBall(Game* game) {
-    float velX = (game->ball.velocity.x > 0) ? BALL_BASE_VELOCITY_X : -BALL_BASE_VELOCITY_X;
-    (void)velX; /* NOTE: ball reset is still a no-op; tracked as a known bug. */
+    Ball* ball = &game->ball;
+
+    /* Serve toward the side that just conceded (keep the last horizontal direction). */
+    float dir = (ball->velocity.x > 0.0f) ? 1.0f : -1.0f;
+
+    ball->position = BALL_POSITION;
+    ball->velocity = (Vector2){ BALL_BASE_VELOCITY_X * dir, BALL_BASE_VELOCITY_Y };
+    ball->speedFactor = 1.0f;
+
+    /* Clear any ball-side skill effects so they don't linger across a point. */
+    ball->slowTimer = 0.0f;
+    ball->lagTimer = 0.0f;
+    ball->curveAngle = 0.0f;
+    ball->illusions = false;
+    ball->fakeBallActive = false;
+    ball->fakeBallPos = (Vector2){ 0.0f, 0.0f };
+    ball->sizeMultiplier = 1.0f;
+    ball->unpredictableBounce = false;
+    ball->randomEffects = false;
 }
 
 /* ---------------------------------------------------------------- gameplay */

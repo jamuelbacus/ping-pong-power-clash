@@ -6,3 +6,6 @@ private/
 /game
 *.o
 *.obj
+
+# Test binaries
+/tests/test_reset_ball
