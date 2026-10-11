@@ -51,7 +51,31 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
                     break;
             }
             break;
-        case GRAND_WIZARD: /* Task 7 */ break;
+        case GRAND_WIZARD:
+            switch (ability) {
+                case 0: /* Curve Spell: a 3s lateral bend on the ball. Modelled as
+                         * a constant acceleration (STAT_BALL_CURVE) consumed by
+                         * UpdateBall, so Pong wall bounces stay authoritative. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
+                        .stat = STAT_BALL_CURVE, .op = OP_SET, .value = 220.0f,
+                        .timeLeft = 3.0f, .duration = 3.0f, .color = color, .source = source });
+                    break;
+                case 1: /* Time Slow: halve the ball's speed for 2s. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
+                        .stat = STAT_BALL_SPEED, .op = OP_MUL, .value = 0.5f,
+                        .timeLeft = 2.0f, .duration = 2.0f, .color = color, .source = source });
+                    break;
+                case 2: /* Arcane Chaos: a stronger 5s lateral bend. Same registry
+                         * key as Curve Spell, so re-activating refreshes it. */
+                    EffectsPush(fx, (Effect){
+                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
+                        .stat = STAT_BALL_CURVE, .op = OP_SET, .value = 400.0f,
+                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
+                    break;
+            }
+            break;
         case DEFENDER:     /* Task 8 */ break;
         default: break;
     }

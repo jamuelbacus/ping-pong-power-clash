@@ -66,8 +66,13 @@ static void ApplyBallEffects(Ball* ball, Effects* fx) {
 }
 
 void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int screenHeight, Paddle* paddle1, Paddle* paddle2) {
-    // Curve is a lateral acceleration applied to the base (source of truth) direction.
-    ball->baseVelocity.x += ball->curveAngle * deltaTime;
+    // Curve is a lateral acceleration applied to the base (source of truth)
+    // direction. The legacy curveAngle field and the STAT_BALL_CURVE effect
+    // (Grand Wizard Curve Spell / Arcane Chaos) both feed it, and this runs
+    // before the effective velocity is derived so the bend shows this frame.
+    float curveAccel = ball->curveAngle
+        + EffectsApply(fx, TARGET_BALL, -1, STAT_BALL_CURVE, 0.0f);
+    ball->baseVelocity.x += curveAccel * deltaTime;
 
     // Derive the effective velocity from base + active effects.
     ApplyBallEffects(ball, fx);
