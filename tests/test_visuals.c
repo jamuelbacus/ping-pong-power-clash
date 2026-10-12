@@ -16,6 +16,8 @@
 #include "ball.h"
 #include "paddle.h"
 #include "character.h"
+#include "layout.h"
+#include "game.h"
 #include <stdio.h>
 
 static int fails = 0;
@@ -88,6 +90,10 @@ int main(void) {
     CHECK(SkillRecoverFraction(1.0f, 0.0f) == 1.0f, "zero max cooldown is treated as ready");
     CHECK(SkillRecoverFraction(3.0f, 5.0f) > 0.0f && SkillRecoverFraction(3.0f, 5.0f) < 1.0f,
           "mid cooldown yields a partial bar");
+
+    /* The in-play HUD must stay inside the top band so the lower court is clear. */
+    CHECK(HUD_SCORELINE_BOTTOM <= WINDOW_HEIGHT * 0.2f, "in-play HUD stays in the top band");
+    CHECK(HUD_SCORELINE_TOP >= 0.0f && HUD_SCORELINE_BOTTOM > HUD_SCORELINE_TOP, "scoreline has a positive footprint");
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;

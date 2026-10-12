@@ -22,17 +22,59 @@ static void DrawMenuButton(Rectangle rec, const char* label, Color accent, bool 
     DrawTextCentered(label, rec.x + rec.width / 2.0f, (int)(rec.y + (rec.height - 24) / 2.0f), 24, THEME_TEXT, true);
 }
 
-/* One skill row: "Q: Dash Return (2.3s)" + a cooldown progress bar. */
-static void DrawSkillRow(int x, int y, int width, const char* key, const char* name,
-                         float cooldown, float maxCooldown, Color accent) {
-    const char* label = (cooldown > 0.05f)
-        ? TextFormat("%s: %s (%.1fs)", key, name, cooldown)
-        : TextFormat("%s: %s", key, name);
-    DrawText(label, x, y, 13, THEME_TEXT);
+/* Cooldown maxima for the three skill slots, indexed 0..2 (skill1, skill2,
+ * ultimate). Skill cooldown maxima live in layout.h and are kept in sync with
+ * paddle.c. */
+static const float HUD_BAR_MAX[3] = { SKILL1_COOLDOWN, SKILL2_COOLDOWN, ULTIMATE_COOLDOWN };
 
-    float t = (cooldown <= 0.0f) ? 1.0f : 1.0f - (cooldown / maxCooldown);
-    DrawRectangle(x, y + 16, width, 3, Fade(THEME_TEXT_DIM, 0.30f));
-    DrawRectangle(x, y + 16, (int)(width * t), 3, accent);
+/* Three cooldown bars under one side's score, centred on centerX. Each bar fills
+ * via SkillRecoverFraction (empty = just used, full = ready). `glow` brightens
+ * the whole set while that player has a live effect — the old standalone
+ * "active dot", folded into the bars. */
+static void DrawSkillBars(const Paddle* p, float centerX, float y, Color accent, bool glow,
+                          const char* k0, const char* k1, const char* k2) {
+    float cd[3] = { p->skill1Cooldown, p->skill2Cooldown, p->ultimateCooldown };
+    const char* keys[3] = { k0, k1, k2 };
+    float groupW = 3.0f * HUD_BAR_WIDTH + 2.0f * HUD_BAR_GAP;
+    float x0 = centerX - groupW / 2.0f;
+    for (int i = 0; i < 3; i++) {
+        float f = SkillRecoverFraction(cd[i], HUD_BAR_MAX[i]);
+        Rectangle track = { x0 + i * (HUD_BAR_WIDTH + HUD_BAR_GAP), y, HUD_BAR_WIDTH, HUD_BAR_HEIGHT };
+        if (glow) DrawGlowRectLines(track, 1.0f, Fade(accent, 0.7f), 5.0f);
+        DrawRectangleRec(track, Fade(THEME_TEXT_DIM, 0.30f));
+        DrawRectangleRec((Rectangle){ track.x, track.y, track.width * f, track.height }, accent);
+        DrawText(keys[i], (int)track.x + (int)(HUD_BAR_WIDTH / 2) - 3,
+                 (int)(y + HUD_BAR_HEIGHT + 2), (int)HUD_KEY_FONT, THEME_TEXT_DIM);
+    }
+}
+
+/* Translucent top-centre scoreline: P1 score | P2 score, each with its name and
+ * three cooldown bars. Drawn BEFORE the ball so it can never hide it.
+ * Vertical rhythm (all relative to HUD_SCORELINE_TOP, plate is 68px tall):
+ *   +2 scores, +36 names, +48 bars, +54 key letters — stays above the bottom. */
+static void DrawScoreline(const Game* game) {
+    Color p1 = characters[game->paddle.charType].accent;
+    Color p2 = characters[game->player2Paddle.charType].accent;
+    Rectangle plate = { WINDOW_WIDTH / 2.0f - HUD_SCORELINE_WIDTH / 2.0f, HUD_SCORELINE_TOP,
+                        HUD_SCORELINE_WIDTH, HUD_SCORELINE_BOTTOM - HUD_SCORELINE_TOP };
+    DrawRectangleRec(plate, Fade(THEME_PANEL, 0.55f));
+
+    float cx = WINDOW_WIDTH / 2.0f;
+    int scoreY = (int)(HUD_SCORELINE_TOP + 2.0f);
+    int nameY  = (int)(HUD_SCORELINE_TOP + 36.0f);
+    float barY = HUD_SCORELINE_TOP + 48.0f;
+
+    DrawTextCentered(TextFormat("%d", game->playerScore), cx - HUD_SCORE_OFFSET, scoreY, (int)HUD_SCORE_FONT, p1, true);
+    DrawTextCentered(TextFormat("%d", game->player2Score), cx + HUD_SCORE_OFFSET, scoreY, (int)HUD_SCORE_FONT, p2, true);
+    DrawTextCentered(":", cx, scoreY + 6, (int)HUD_SCORE_FONT, THEME_TEXT_DIM, false);
+
+    DrawTextCentered(characters[game->paddle.charType].name, cx - HUD_SCORE_OFFSET, nameY, (int)HUD_NAME_FONT, THEME_TEXT, false);
+    DrawTextCentered(characters[game->player2Paddle.charType].name, cx + HUD_SCORE_OFFSET, nameY, (int)HUD_NAME_FONT, THEME_TEXT, false);
+
+    bool glow1 = PlayerHasActiveEffect(&game->effects, 0) || ShieldActive(&game->paddle) || AfterburnerArmed(&game->paddle);
+    bool glow2 = PlayerHasActiveEffect(&game->effects, 1) || ShieldActive(&game->player2Paddle) || AfterburnerArmed(&game->player2Paddle);
+    DrawSkillBars(&game->paddle, cx - HUD_SCORE_OFFSET, barY, p1, glow1, "Q", "E", "R");
+    DrawSkillBars(&game->player2Paddle, cx + HUD_SCORE_OFFSET, barY, p2, glow2, "1", "2", "3");
 }
 
 /* ---------------------------------------------------------------- lifecycle */
@@ -265,56 +307,13 @@ static void DrawGameplay(const Game* game) {
     DrawGlowLine((Vector2){ WINDOW_WIDTH / 2.0f, 0 }, (Vector2){ WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT },
                  Fade(THEME_GRID_HI, 0.7f), 5.0f);
 
+    DrawScoreline(game);          /* HUD first: everything below draws over it */
+
     DrawBall(&game->ball);
     DrawDecoys(&game->ball);
     DrawPaddle(game->paddle);
     DrawPaddle(game->player2Paddle);
     DrawEffects(&game->effects, &game->ball, &game->paddle, &game->player2Paddle);
-
-    Color p1 = characters[game->paddle.charType].accent;
-    Color p2 = characters[game->player2Paddle.charType].accent;
-
-    /* Scores */
-    DrawTextCentered(TextFormat("%d", game->playerScore), WINDOW_WIDTH / 4.0f, 20, 48, p1, true);
-    DrawTextCentered(TextFormat("%d", game->player2Score), 3 * WINDOW_WIDTH / 4.0f, 20, 48, p2, true);
-
-    /* Character names */
-    DrawText(characters[game->paddle.charType].name, 10, 50, 18, p1);
-    DrawText(characters[game->player2Paddle.charType].name, WINDOW_WIDTH - 10 - MeasureText(characters[game->player2Paddle.charType].name, 18), 50, 18, p2);
-
-    /* HUD panels */
-    DrawGlowRect(HUD_P1, THEME_PANEL, 4.0f);
-    DrawGlowRectLines(HUD_P1, 1.5f, p1, 5.0f);
-    DrawText("SKILLS", (int)HUD_P1.x + 8, (int)HUD_P1.y + 6, 15, p1);
-
-    const Paddle* left = &game->paddle;
-    DrawSkillRow((int)HUD_P1.x + 8, (int)HUD_P1.y + 28, (int)HUD_P1.width - 16,
-                 "Q", characters[left->charType].skills[0], left->skill1Cooldown, SKILL1_COOLDOWN, p1);
-    DrawSkillRow((int)HUD_P1.x + 8, (int)HUD_P1.y + 52, (int)HUD_P1.width - 16,
-                 "E", characters[left->charType].skills[1], left->skill2Cooldown, SKILL2_COOLDOWN, p1);
-    DrawSkillRow((int)HUD_P1.x + 8, (int)HUD_P1.y + 76, (int)HUD_P1.width - 16,
-                 "R", characters[left->charType].skills[2], left->ultimateCooldown, ULTIMATE_COOLDOWN, p1);
-
-    DrawGlowRect(HUD_P2, THEME_PANEL, 4.0f);
-    DrawGlowRectLines(HUD_P2, 1.5f, p2, 5.0f);
-    DrawText("SKILLS", (int)HUD_P2.x + 8, (int)HUD_P2.y + 6, 15, p2);
-
-    const Paddle* right = &game->player2Paddle;
-    DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 28, (int)HUD_P2.width - 16,
-                 "1", characters[right->charType].skills[0], right->skill1Cooldown, SKILL1_COOLDOWN, p2);
-    DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 52, (int)HUD_P2.width - 16,
-                 "2", characters[right->charType].skills[1], right->skill2Cooldown, SKILL2_COOLDOWN, p2);
-    DrawSkillRow((int)HUD_P2.x + 8, (int)HUD_P2.y + 76, (int)HUD_P2.width - 16,
-                 "3", characters[right->charType].skills[2], right->ultimateCooldown, ULTIMATE_COOLDOWN, p2);
-
-    /* Active-effect indicator: ONE glowing dot per player while any of their
-     * timed effects (or the Defender shield window) is live. Deliberately not
-     * a per-slot ability->effect map — the registry is the only source of
-     * truth, so this can never drift from what DrawEffects actually renders. */
-    if (PlayerHasActiveEffect(&game->effects, 0) || ShieldActive(&game->paddle) || AfterburnerArmed(&game->paddle))
-        DrawGlowCircle((Vector2){ HUD_P1.x + HUD_P1.width - 10.0f, HUD_P1.y + 10.0f }, 4.0f, p1, 6.0f);
-    if (PlayerHasActiveEffect(&game->effects, 1) || ShieldActive(&game->player2Paddle) || AfterburnerArmed(&game->player2Paddle))
-        DrawGlowCircle((Vector2){ HUD_P2.x + HUD_P2.width - 10.0f, HUD_P2.y + 10.0f }, 4.0f, p2, 6.0f);
 }
 
 static void DrawGameOver(const Game* game) {

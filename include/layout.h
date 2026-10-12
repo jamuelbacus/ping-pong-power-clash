@@ -27,9 +27,20 @@ static inline Rectangle CharCellRect(int index) {
     return (Rectangle){ x, y, CHAR_CELL_W - CHAR_CARD_PAD, CHAR_CELL_H - CHAR_CARD_PAD };
 }
 
-/* --- Gameplay HUD --- */
-static const Rectangle HUD_P1 = {  10, 430, 230, 100 };
-static const Rectangle HUD_P2 = { 720, 430, 230, 100 };
+/* --- In-play HUD (scoreline) --- */
+/* One translucent plate centred at the top of the court. Everything the HUD
+ * occupies stays above HUD_SCORELINE_BOTTOM so the lower court is unobstructed;
+ * the ball is still drawn above this (see DrawGameplay). */
+static const float HUD_SCORELINE_TOP = 8.0f;
+static const float HUD_SCORELINE_BOTTOM = 76.0f;
+static const float HUD_SCORELINE_WIDTH = 420.0f;
+static const float HUD_SCORE_FONT = 34.0f;   /* big score digit */
+static const float HUD_NAME_FONT = 11.0f;    /* character name under the score */
+static const float HUD_KEY_FONT = 10.0f;     /* Q/E/R or 1/2/3 under each bar */
+static const float HUD_SCORE_OFFSET = 70.0f; /* half the gap between P1 and P2 scores */
+static const float HUD_BAR_WIDTH = 22.0f;
+static const float HUD_BAR_HEIGHT = 4.0f;
+static const float HUD_BAR_GAP = 6.0f;
 
 /* Skill cooldown maxima (seconds) — keep in sync with paddle.c */
 #define SKILL1_COOLDOWN 5.0f
