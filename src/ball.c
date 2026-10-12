@@ -10,6 +10,7 @@
 #include "effects.h"
 #include "abilities.h"
 #include "trail.h"
+#include "overdrive.h"
 
 #include <math.h>
 
@@ -126,6 +127,21 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         ball->position.x = (dirX > 0.0f)
             ? paddle1->position.x + paddle1->size.x + ball->radius + PADDLE_SEPARATION_EPSILON
             : paddle1->position.x - ball->radius - PADDLE_SEPARATION_EPSILON;
+        /* Overdrive Clutch: returning the ball off the outer 25% of a Speedster
+         * paddle spikes heat to full for a short window (a direct SET, so it
+         * replaces any live Flow ADD on the same slot) and launches a ball
+         * afterimage. Center returns stay calm. */
+        if (paddle1->charType == SPEEDSTER
+            && (hitPos < OVERDRIVE_CLUTCH_EDGE || hitPos > 1.0f - OVERDRIVE_CLUTCH_EDGE)) {
+            EffectsPush(fx, (Effect){ .active=true, .target=TARGET_PADDLE, .paddleIndex=0,
+                .stat=STAT_PADDLE_HEAT, .op=OP_SET, .value=OVERDRIVE_CLUTCH_HEAT,
+                .timeLeft=OVERDRIVE_CLUTCH_DURATION, .duration=OVERDRIVE_CLUTCH_DURATION,
+                .color=characters[SPEEDSTER].accent, .source=0 });
+            EffectsPush(fx, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+                .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
+                .timeLeft=OVERDRIVE_CLUTCH_TRAIL, .duration=OVERDRIVE_CLUTCH_TRAIL,
+                .color=characters[SPEEDSTER].accent, .source=0 });
+        }
     }
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
@@ -150,6 +166,20 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         ball->position.x = (dirX > 0.0f)
             ? paddle2->position.x + paddle2->size.x + ball->radius + PADDLE_SEPARATION_EPSILON
             : paddle2->position.x - ball->radius - PADDLE_SEPARATION_EPSILON;
+        /* Overdrive Clutch (right side, index 1): mirrors the paddle1 block so
+         * both paddles' heat slots and shared ball trail key off their own
+         * paddle index. */
+        if (paddle2->charType == SPEEDSTER
+            && (hitPos < OVERDRIVE_CLUTCH_EDGE || hitPos > 1.0f - OVERDRIVE_CLUTCH_EDGE)) {
+            EffectsPush(fx, (Effect){ .active=true, .target=TARGET_PADDLE, .paddleIndex=1,
+                .stat=STAT_PADDLE_HEAT, .op=OP_SET, .value=OVERDRIVE_CLUTCH_HEAT,
+                .timeLeft=OVERDRIVE_CLUTCH_DURATION, .duration=OVERDRIVE_CLUTCH_DURATION,
+                .color=characters[SPEEDSTER].accent, .source=1 });
+            EffectsPush(fx, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+                .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
+                .timeLeft=OVERDRIVE_CLUTCH_TRAIL, .duration=OVERDRIVE_CLUTCH_TRAIL,
+                .color=characters[SPEEDSTER].accent, .source=1 });
+        }
     }
 
     // Reflect any base-velocity mutation back into the effective velocity so

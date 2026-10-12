@@ -144,6 +144,59 @@ int main(void) {
               "non-Speedster ignores heat entirely");
     }
 
+    /* --- Overdrive Clutch (Task 5) --- */
+    {
+        Effects fx; EffectsInit(&fx);
+        Ball b; InitBall(&b, 55.0f, 215.0f, BALL_SIZE, -360.0f, 0.0f, BALL_COLOR); /* tip of pad */
+        Paddle p1; InitPaddle(&p1, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+        Paddle p2; InitPaddle(&p2, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, RED, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+        UpdateBall(&b, &fx, 1.0f/60.0f, 960, 540, &p1, &p2);   /* hitPos 0.15 -> clutch */
+        CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) == 1.0f,
+              "tip return spikes heat to 1");
+        CHECK(EffectDurationOf(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT) == OVERDRIVE_CLUTCH_DURATION,
+              "clutch heat spike lasts 0.5s");
+        CHECK(EffectsHas(&fx, TARGET_BALL, -1, STAT_TRAIL), "clutch arms the ball afterimage");
+        CHECK(EffectDurationOf(&fx, TARGET_BALL, -1, STAT_TRAIL) == OVERDRIVE_CLUTCH_TRAIL,
+              "clutch ball trail lasts 0.5s");
+
+        /* Center hit: no clutch. */
+        Effects fx2; EffectsInit(&fx2);
+        Ball b2; InitBall(&b2, 55.0f, 250.0f, BALL_SIZE, -360.0f, 0.0f, BALL_COLOR); /* hitPos 0.5 */
+        UpdateBall(&b2, &fx2, 1.0f/60.0f, 960, 540, &p1, &p2);
+        CHECK(!EffectsHas(&fx2, TARGET_PADDLE, 0, STAT_PADDLE_HEAT) &&
+              !EffectsHas(&fx2, TARGET_BALL, -1, STAT_TRAIL), "center return does not clutch");
+
+        /* Non-Speedster: tip return does not clutch. */
+        Effects fx3; EffectsInit(&fx3);
+        Ball b3; InitBall(&b3, 55.0f, 215.0f, BALL_SIZE, -360.0f, 0.0f, BALL_COLOR);
+        Paddle wz; InitPaddle(&wz, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+        UpdateBall(&b3, &fx3, 1.0f/60.0f, 960, 540, &wz, &p2);
+        CHECK(!EffectsHas(&fx3, TARGET_BALL, -1, STAT_TRAIL), "non-Speedster never clutches");
+
+        /* Index-1 side mirrors index 0. */
+        Effects fx4; EffectsInit(&fx4);
+        Ball b4; InitBall(&b4, 885.0f, 280.0f, BALL_SIZE, 360.0f, 0.0f, BALL_COLOR); /* hitPos 0.8 */
+        Paddle q2; InitPaddle(&q2, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, RED, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+        UpdateBall(&b4, &fx4, 1.0f/60.0f, 960, 540, &p1, &q2);
+        CHECK(EffectsApply(&fx4, TARGET_PADDLE, 1, STAT_PADDLE_HEAT, 0.0f) == 1.0f,
+              "right paddle clutch keys effects at index 1");
+
+        /* C3: Clutch OP_SET replaces a live Flow ADD on the same heat slot. */
+        {
+            Effects fx5; EffectsInit(&fx5);
+            Ball b5; InitBall(&b5, 55.0f, 215.0f, BALL_SIZE, -360.0f, 0.0f, BALL_COLOR);
+            EffectsPush(&fx5, (Effect){ .active=true, .target=TARGET_PADDLE, .paddleIndex=0,
+                .stat=STAT_PADDLE_HEAT, .op=OP_ADD, .value=OVERDRIVE_FLOW_HEAT,
+                .timeLeft=OVERDRIVE_FLOW_DURATION, .duration=OVERDRIVE_FLOW_DURATION,
+                .color=BLUE, .source=0 });   /* live Flow */
+            UpdateBall(&b5, &fx5, 1.0f/60.0f, 960, 540, &p1, &p2);   /* tip clutch */
+            CHECK(EffectsApply(&fx5, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) == 1.0f,
+                  "clutch SET overrides live flow ADD");
+            CHECK(EffectDurationOf(&fx5, TARGET_PADDLE, 0, STAT_PADDLE_HEAT) == OVERDRIVE_CLUTCH_DURATION,
+                  "clutch SET slot carries the 0.5s window, not flow's 1.5s");
+        }
+    }
+
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;
 }
