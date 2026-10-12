@@ -10,6 +10,7 @@
 #include "raylib.h"
 #include "effects.h"
 #include "trail.h"
+#include "decoy.h"
 
 static const float BALL_SIZE = 10.0f;
 static const float BALL_BASE_VELOCITY_X = 300.0f;
@@ -40,6 +41,8 @@ typedef struct Ball {
     bool randomEffects;
     // "True afterimage" position history: recorded per frame while STAT_TRAIL is live
     TrailHistory trail;
+    // Speedster "Shadow Clone" ultimate: a burst of visual-only decoy balls
+    DecoySwarm decoys;
 } Ball;
 
 void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY, Color color);

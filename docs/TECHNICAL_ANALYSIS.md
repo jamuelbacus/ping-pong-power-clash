@@ -193,8 +193,8 @@ All ability effects go through a **fixed 64-slot timed registry** (`include/effe
   `(TARGET_PADDLE, idx, STAT_PADDLE_HEAT, source=idx)`, so `EffectsPush` **refreshes** one slot
   instead of stacking. Intended consequences: re-using `Q`/`E` while Flow is live refreshes the
   window rather than adding; a Clutch `OP_SET` replaces a live Flow `OP_ADD` (and the SET pass
-  beats the ADD pass); a clutch ball-trail push refreshes the same ball `STAT_TRAIL` slot
-  Afterimage Hit uses, so a clutch return during the ultimate truncates its remaining trail.
+  beats the ADD pass); and a clutch ball-trail push refreshes the acting paddle's own ball
+  `STAT_TRAIL` slot (same `source`) rather than stacking a second one.
 
 ### 5.3 Ball model (authoritative base + derived velocity)
 
@@ -215,7 +215,8 @@ Confirmed against `include/ball.h` and `include/paddle.h`. These are placeholder
 unimplemented characters/skills — no live code reads them (except where noted):
 
 **Live fields that must NOT be confused with dead ones:** `Ball::trail`, `Paddle::trail` (the
-afterimage history rings, §5.6) and `Paddle::shieldTimer` (Defender's armed window) are all
+afterimage history rings, §5.6), `Ball::decoys` (the Shadow Clone swarm, §5.7) and
+`Paddle::shieldTimer` (Defender's armed window) are all
 consumed. The dash and trail features carry **no dead flag of their own** — "is a dash trail
 running?" is answered by a live `STAT_TRAIL` registry marker, and the ghost positions come from
 recorded history, not from a boolean or timer field:
@@ -255,7 +256,7 @@ live in `include/overdrive.h`:
 
 | Source | Rule | Where |
 | --- | --- | --- |
-| **Rally** (always on) | `rally = clamp((\|ball->velocity\| - BALL_SPEED_BASE) / BALL_SPEED_BASE, 0, 1)`, computed from the **effective** velocity, so Afterimage Hit ×1.35 raises heat and Time Slow ×0.5 lowers it. `BALL_SPEED_BASE` is the float32 rounding of `\|(300,200)\|` (the serve speed), which is what keeps `test_effective_stats`'s exact `maxSpeed == 1000.0f` / `500.0f` guards valid at serve speed | `src/paddle.c` `UpdatePaddle` |
+| **Rally** (always on) | `rally = clamp((\|ball->velocity\| - BALL_SPEED_BASE) / BALL_SPEED_BASE, 0, 1)`, computed from the **effective** velocity, so a hard rally raises heat and Time Slow ×0.5 lowers it. `BALL_SPEED_BASE` is the float32 rounding of `\|(300,200)\|` (the serve speed), which is what keeps `test_effective_stats`'s exact `maxSpeed == 1000.0f` / `500.0f` guards valid at serve speed | `src/paddle.c` `UpdatePaddle` |
 | **Flow** (`Q`/`E` use) | `OP_ADD` `OVERDRIVE_FLOW_HEAT` (0.35) for `OVERDRIVE_FLOW_DURATION` (1.5 s), plus trimming the **other** ability's cooldown by `OVERDRIVE_FLOW_TRIM` (1 s), clamped at 0 | `src/abilities.c`, SPEEDSTER cases 0 and 1 |
 | **Clutch** (edge return) | `OP_SET` `OVERDRIVE_CLUTCH_HEAT` (1.0) for `OVERDRIVE_CLUTCH_DURATION` (0.5 s) **plus** a ball `OP_SET` `STAT_TRAIL` for `OVERDRIVE_CLUTCH_TRAIL` (0.5 s), keyed at the acting paddle's index (0 and 1 blocks mirror each other) | `src/ball.c`, inside both paddle-collision branches |
 
@@ -294,6 +295,28 @@ bit-identical to `sqrtf(300*300 + 200*200)` so a serve-speed ball yields heat ex
   each live ghost as a fading accent circle/rect at its recorded position, alpha falling from
   `0.5` toward `0.1` as `age / TRAIL_MAX_AGE`. This replaced the old velocity-offset "comet tail"
   ghosts, which used to glide with the entity.
+
+### 5.7 Speedster Shadow Clone (visual decoys)
+
+The Speedster ultimate is a **pure illusion** ability: it spawns decoy balls that look and move
+like the ball but are not physics entities. It lives entirely outside the effects registry.
+
+- `include/decoy.h` + `src/decoy.c` define a fixed-capacity `DecoySwarm` (no allocation):
+  `Decoy { Vector2 position; Vector2 velocity; float age; bool live; }`,
+  `DECOY_MAX 2` / `DECOY_SPAWN_COUNT 2`, `DECOY_LIFETIME 1.2f`, `DECOY_FADE_TIME 0.4f`.
+- `DecoySwarmSpawn` clears the swarm and re-emits `DECOY_SPAWN_COUNT` clones at the ball's
+  position, each clone's heading rotated off the ball's velocity by `DECOY_SPREAD` (30°) so the
+  pair fans out. Re-activation replaces rather than stacks, so the swarm never exceeds capacity.
+- `DecoySwarmUpdate` advances each clone, reflects it off the **top/bottom walls only**
+  (reflection radius `DECOY_RADIUS`, matching `BALL_SIZE`), and retires it at `DECOY_LIFETIME`.
+  Clones never query the registry, collide with a paddle, or touch the score.
+- Embedded as `Ball::decoys` (initialized in `InitBall` and wiped by `resetBall`);
+  `updateGamePlay` ticks it right after `UpdateBall` (so it freezes with the sim at `GAME_OVER`),
+  and `DrawGameplay` calls `DrawDecoys` to draw each live clone exactly like the real ball with
+  `DecoyAlpha(age)` opacity (opaque → 0 over the final `DECOY_FADE_TIME`).
+- Abilities: `AbilitiesActivate` SPEEDSTER case 2 calls `DecoySwarmSpawn`. It produces **no**
+  registry effect, so the old Afterimage Hit `STAT_BALL_SPEED ×1.35` + ball-`STAT_TRAIL` buffs are
+  gone with it.
 
 ---
 

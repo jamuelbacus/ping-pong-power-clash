@@ -12,16 +12,17 @@ Each recipe below was verified from the **project root**; every binary is writte
 | Test | What it guards | Link set (sources besides `tests/<name>.c`) |
 | --- | --- | --- |
 | `test_effects` | Registry semantics: MUL/ADD/SET order, same-source refresh vs distinct-source stack, expiry restores base | `src/effects.c` |
-| `test_effective_stats` | Base-vs-derived velocity; paddle speed ×2 and restore; effects applied exactly once | `abilities effects ball paddle character theme trail` |
-| `test_ball_physics` | Wall clamp/bounce, `resetBall` (clears effects, recenters), timed-effect expiry, one contact = one bounce/creep | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
-| `test_game_over` | Reaching 5 enters `GAME_OVER`; simulation frozen there | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
-| `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
-| `test_cpu_policy` | One decision tick fires at most one ability; decision timer never negative | `abilities effects ball paddle character utils theme trail` |
-| `test_speedster` | Dash snap + pre-snap footprint, Speed Boost ×2, Afterimage Hit ×1.35 + ball trail at index −1; Overdrive heat (rally floor/cap, Flow push + cooldown trim, Clutch edge spike) | `abilities effects ball paddle character theme trail` |
-| `test_wizard` | Curve Spell/Arcane Chaos strengths + durations, self-restoring bend, base untouched | `abilities effects ball paddle character theme trail` |
-| `test_defender` | Shield arm/consume/reflect (×1.3, no creep), Wide Paddle ×1.8, Iron Fortress full height + immovable | `abilities effects ball paddle character theme trail` |
-| `test_visuals` | Pure visual queries match the registry: tint, trail, active-dot ownership, shield window | `visuals abilities effects ball paddle character theme trail` |
+| `test_effective_stats` | Base-vs-derived velocity; paddle speed ×2 and restore; effects applied exactly once | `abilities effects ball paddle character theme trail decoy` |
+| `test_ball_physics` | Wall clamp/bounce, `resetBall` (clears effects, recenters), timed-effect expiry, one contact = one bounce/creep | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
+| `test_game_over` | Reaching 5 enters `GAME_OVER`; simulation frozen there | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
+| `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields and clears Shadow Clone decoys | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
+| `test_cpu_policy` | One decision tick fires at most one ability; decision timer never negative | `abilities effects ball paddle character utils theme trail decoy` |
+| `test_speedster` | Dash snap + pre-snap footprint, Speed Boost ×2, Shadow Clone burst (spawns from either paddle, non-Speedster stays dark); Overdrive heat (rally floor/cap, Flow push + cooldown trim, Clutch edge spike) | `abilities effects ball paddle character theme trail decoy` |
+| `test_wizard` | Curve Spell/Arcane Chaos strengths + durations, self-restoring bend, base untouched | `abilities effects ball paddle character theme trail decoy` |
+| `test_defender` | Shield arm/consume/reflect (×1.3, no creep), Wide Paddle ×1.8, Iron Fortress full height + immovable | `abilities effects ball paddle character theme trail decoy` |
+| `test_visuals` | Pure visual queries match the registry: tint, trail, active-dot ownership, shield window | `visuals abilities effects ball paddle character theme trail decoy` |
 | `test_trail` | Pure position-history ring: record/age/expire order, newest-first readout, fixed capacity, ghosts never move | `trail` |
+| `test_decoy` | Shadow Clone swarm: spawn/divergence, wall reflect, age fade, expiry, replace-not-stack, clear | `decoy` |
 
 > `src/theme.c` is needed even by "logic-only" suites because `paddle.c` / `ball.c` draw
 > functions reference `DrawGlowRect` / `DrawGlowCircle` (`theme.c`) and `characters[]`
@@ -29,6 +30,8 @@ Each recipe below was verified from the **project root**; every binary is writte
 > `paddle.c` is linked — its skill-input block references `AbilitiesActivate`.
 > `src/trail.c` is needed whenever `ball.c` / `paddle.c` / `abilities.c` / `game.c` is
 > linked — every one of them records into a `TrailHistory` ring.
+> `src/decoy.c` is needed whenever `ball.c` / `abilities.c` / `game.c` is linked — those
+> units init/spawn/tick/draw a `DecoySwarm`.
 
 ---
 
@@ -55,7 +58,7 @@ effective magnitude; paddle `STAT_PADDLE_SPEED` ×2 doubles `maxSpeed` and expir
 
 ```sh
 gcc tests/test_effective_stats.c src/abilities.c src/effects.c src/ball.c src/paddle.c \
-    src/character.c src/theme.c src/trail.c -Iinclude \
+    src/character.c src/theme.c src/trail.c src/decoy.c -Iinclude \
     $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_effective_stats
 /tmp/test_effective_stats
 ```
@@ -77,7 +80,7 @@ through a game-loop tick, and one paddle contact produces exactly one bounce / o
 gcc tests/test_ball_physics.c \
     src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
-    src/trail.c \
+    src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_ball_physics
 /tmp/test_ball_physics
 ```
@@ -94,7 +97,7 @@ reports player 1, and the simulation is **frozen** — the ball stops moving whi
 gcc tests/test_game_over.c \
     src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
-    src/trail.c \
+    src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_game_over
 /tmp/test_game_over
 ```
@@ -113,7 +116,7 @@ reflect can't carry across a point.
 gcc tests/test_reset_ball.c \
     src/visuals.c src/theme.c src/viewport.c src/assets.c \
     src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
-    src/trail.c \
+    src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_reset_ball
 /tmp/test_reset_ball
 ```
@@ -130,7 +133,7 @@ ticks.
 ```sh
 gcc tests/test_cpu_policy.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c \
-    src/character.c src/utils.c src/theme.c src/trail.c \
+    src/character.c src/utils.c src/theme.c src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_cpu_policy
 /tmp/test_cpu_policy
 ```
@@ -142,9 +145,9 @@ Expected output: `RESULT: PASS` (exit code 0).
 Speedster abilities through `AbilitiesActivate`: Dash Return snaps the paddle to the ball's Y
 and arms a 0.3 s paddle `STAT_TRAIL` — parking the **pre-snap** position first, so the ring
 starts with a footprint where the dash flashed from and `UpdatePaddle` records the destination
-on the next frame; Speed Boost is `STAT_PADDLE_SPEED` ×2; Afterimage Hit is
-`STAT_BALL_SPEED` ×1.35 plus a 5 s ball `STAT_TRAIL`, landing at the ball's read index `-1`
-regardless of which paddle activated it.
+on the next frame; Speed Boost is `STAT_PADDLE_SPEED` ×2; Shadow Clone spawns `DECOY_SPAWN_COUNT`
+decoys at the ball's position (from either paddle's ultimate) and pushes **no** registry effect,
+while a non-Speedster ultimate leaves the swarm dark.
 
 The **Overdrive** passive (heat model) is guarded here too: a serve-speed ball (`|(300,200)| =
 BALL_SPEED_BASE`) holds heat at 0 with `maxSpeed` at 500; a ball at twice that speed caps heat at
@@ -162,7 +165,7 @@ return does nothing, a non-Speedster paddle never clutches, and the SET slot rep
 ```sh
 gcc tests/test_speedster.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c src/character.c src/theme.c \
-    src/trail.c \
+    src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_speedster
 /tmp/test_speedster
 ```
@@ -180,7 +183,7 @@ expires.
 ```sh
 gcc tests/test_wizard.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c src/character.c src/theme.c \
-    src/trail.c \
+    src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_wizard
 /tmp/test_wizard
 ```
@@ -198,7 +201,7 @@ immovable marker that `UpdatePaddle` maps to `paddle->immovable`, releasing clea
 ```sh
 gcc tests/test_defender.c \
     src/abilities.c src/effects.c src/ball.c src/paddle.c src/character.c src/theme.c \
-    src/trail.c \
+    src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_defender
 /tmp/test_defender
 ```
@@ -217,7 +220,7 @@ shapes.
 
 ```sh
 gcc tests/test_visuals.c src/visuals.c src/abilities.c src/effects.c src/ball.c \
-    src/paddle.c src/character.c src/theme.c src/trail.c \
+    src/paddle.c src/character.c src/theme.c src/trail.c src/decoy.c \
     -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_visuals
 /tmp/test_visuals
 ```
@@ -235,6 +238,27 @@ allocation anywhere.
 gcc tests/test_trail.c src/trail.c -Iinclude \
     $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_trail
 /tmp/test_trail
+```
+
+Expected output: `RESULT: PASS` (exit code 0).
+
+## `test_decoy`
+
+The Speedster **Shadow Clone** swarm (`DecoySwarm` in `src/decoy.c`): a fixed-capacity burst of
+visual-only decoy balls. No window, no entities — it drives the pure API directly.
+
+Checks: an empty swarm counts zero; `DecoySwarmSpawn` emits `DECOY_SPAWN_COUNT` clones at the
+origin, age 0, fanning to **opposite sides** of the ball's heading at the ball's speed;
+`DecoySwarmUpdate` integrates `velocity × dt` and ages each clone; a clone near the top/bottom
+edge **reflects and clamps** to the wall face (`DECOY_RADIUS`); `DecoyAlpha` is opaque while
+fresh, fades only over the final `DECOY_FADE_TIME`, and is 0 at/after `DECOY_LIFETIME`;
+`DecoySwarmUpdate` retires every clone at `DECOY_LIFETIME`; and re-spawning **replaces** the
+swarm (never stacks past `DECOY_MAX`) while `DecoySwarmInit` clears it.
+
+```sh
+gcc tests/test_decoy.c src/decoy.c -Iinclude \
+    $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_decoy
+/tmp/test_decoy
 ```
 
 Expected output: `RESULT: PASS` (exit code 0).

@@ -6,7 +6,7 @@
  * Build & run (from the project root):
  *   gcc tests/test_visuals.c src/visuals.c src/abilities.c src/effects.c \
  *       src/ball.c src/paddle.c src/character.c src/utils.c src/theme.c \
- *       src/trail.c \
+ *       src/trail.c src/decoy.c \
  *       -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_visuals
  *   /tmp/test_visuals
  */

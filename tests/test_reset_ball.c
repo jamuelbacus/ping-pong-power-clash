@@ -10,7 +10,7 @@
  *   gcc tests/test_reset_ball.c \
  *       src/visuals.c src/theme.c src/viewport.c src/assets.c \
  *       src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
- *       src/trail.c \
+ *       src/trail.c src/decoy.c \
  *       -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_reset_ball
  *   /tmp/test_reset_ball
  */
@@ -68,6 +68,19 @@ int main(void) {
     resetBall(&game);
     if (game.paddle.shieldTimer != 0.0f || game.player2Paddle.shieldTimer != 0.0f) {
         printf("FAIL: resetBall carried an armed shield across the point\n");
+        failed = 1;
+    }
+
+    /* Shadow Clone decoys are a hard stop at a point boundary too: arm a live
+     * burst, reset, and no clone may survive into the next point. */
+    DecoySwarmSpawn(&game.ball.decoys, game.ball.position, game.ball.velocity);
+    if (DecoySwarmActiveCount(&game.ball.decoys) == 0) {
+        printf("FAIL: could not arm decoys for the reset check\n");
+        failed = 1;
+    }
+    resetBall(&game);
+    if (DecoySwarmActiveCount(&game.ball.decoys) != 0) {
+        printf("FAIL: resetBall carried Shadow Clone decoys across the point\n");
         failed = 1;
     }
 

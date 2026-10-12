@@ -5,6 +5,7 @@
 #include "viewport.h"
 #include "visuals.h"
 #include "trail.h"
+#include "decoy.h"
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -87,6 +88,8 @@ static void resetBall(Game* game) {
     TrailHistoryInit(&game->ball.trail);
     TrailHistoryInit(&game->paddle.trail);
     TrailHistoryInit(&game->player2Paddle.trail);
+    /* ...and no Shadow Clone decoy survives a point either. */
+    DecoySwarmInit(&game->ball.decoys);
 }
 
 /* ---------------------------------------------------------------- gameplay */
@@ -103,6 +106,10 @@ static void updateGamePlay(Game* game, float deltaTime) {
     }
 
     UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
+
+    /* Shadow Clone decoys ride the ball: purely cosmetic, advanced here so
+     * they freeze with the rest of the sim at GAME_OVER. */
+    DecoySwarmUpdate(&game->ball.decoys, deltaTime, WINDOW_HEIGHT);
 
     if (game->ball.position.x < 0) {
         game->player2Score++;
@@ -231,12 +238,24 @@ static void DrawCharacterSelect(const Game* game) {
     }
 }
 
+/* Shadow Clone: draw each live decoy exactly like the real ball so the clones
+ * read as genuine balls, fading over the last DECOY_FADE_TIME. Purely visual —
+ * no physics ever touched them. */
+static void DrawDecoys(const Ball* ball) {
+    for (int i = 0; i < DECOY_MAX; i++) {
+        const Decoy* d = &ball->decoys.items[i];
+        if (!d->live) continue;
+        DrawGlowCircle(d->position, ball->radius, Fade(ball->color, DecoyAlpha(d->age)), 8.0f);
+    }
+}
+
 static void DrawGameplay(const Game* game) {
     /* Center line */
     DrawGlowLine((Vector2){ WINDOW_WIDTH / 2.0f, 0 }, (Vector2){ WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT },
                  Fade(THEME_GRID_HI, 0.7f), 5.0f);
 
     DrawBall(&game->ball);
+    DrawDecoys(&game->ball);
     DrawPaddle(game->paddle);
     DrawPaddle(game->player2Paddle);
     DrawEffects(&game->effects, &game->ball, &game->paddle, &game->player2Paddle);

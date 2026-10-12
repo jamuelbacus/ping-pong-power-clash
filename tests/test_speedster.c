@@ -5,6 +5,7 @@
 #include "paddle.h"
 #include "character.h"
 #include "trail.h"
+#include "decoy.h"
 #include "layout.h"
 #include "overdrive.h"
 #include <stdio.h>
@@ -50,22 +51,31 @@ int main(void) {
     AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);   /* Speed Boost */
     CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SPEED, 300.0f) == 600.0f, "speed boost x2");
 
-    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 2);   /* Afterimage Hit */
-    CHECK(EffectsApply(&fx, TARGET_BALL, -1, STAT_BALL_SPEED, 300.0f) == 405.0f, "afterimage speed x1.35");
-    CHECK(EffectsHas(&fx, TARGET_BALL, -1, STAT_TRAIL), "afterimage arms a ball trail marker");
-    CHECK(EffectDurationOf(&fx, TARGET_BALL, -1, STAT_TRAIL) == 5.0f, "afterimage ball trail lasts 5s");
+    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 2);   /* Shadow Clone */
+    CHECK(DecoySwarmActiveCount(&b.decoys) == DECOY_SPAWN_COUNT,
+          "ultimate spawns the Shadow Clone burst");
+    CHECK(b.decoys.items[0].position.x == b.position.x && b.decoys.items[0].position.y == b.position.y,
+          "clones spawn at the ball's position");
+    CHECK(!EffectsHas(&fx, TARGET_BALL, -1, STAT_BALL_SPEED),
+          "Shadow Clone no longer buffs ball speed");
+    CHECK(!EffectsHas(&fx, TARGET_BALL, -1, STAT_TRAIL),
+          "Shadow Clone no longer arms a ball trail");
 
-    /* Ball effects must land at the index the ball actually reads (-1),
-     * independent of which paddle activated the ability. */
+    /* The burst belongs to whichever ball was passed in, from either paddle. */
     Effects fx2; EffectsInit(&fx2);
     Ball b2; InitBall(&b2, 480, 400, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle pad2; InitPaddle(&pad2, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
 
-    AbilitiesActivate(&fx2, &b2, &pad2, 1, SPEEDSTER, 2);   /* Afterimage Hit from paddle index 1 */
-    CHECK(EffectsApply(&fx2, TARGET_BALL, -1, STAT_BALL_SPEED, 300.0f) == 405.0f,
-          "afterimage speed lands at the ball's read index for paddleIndex=1");
-    CHECK(EffectsHas(&fx2, TARGET_BALL, -1, STAT_TRAIL),
-          "afterimage ball trail lands at the ball's read index for paddleIndex=1");
+    AbilitiesActivate(&fx2, &b2, &pad2, 1, SPEEDSTER, 2);   /* Shadow Clone from paddle index 1 */
+    CHECK(DecoySwarmActiveCount(&b2.decoys) == DECOY_SPAWN_COUNT,
+          "Shadow Clone spawns for paddle index 1 too");
+
+    /* Non-Speedster ultimate does not clone. */
+    Effects fx3; EffectsInit(&fx3);
+    Ball b3; InitBall(&b3, 480, 400, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
+    Paddle wz; InitPaddle(&wz, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+    AbilitiesActivate(&fx3, &b3, &wz, 0, GRAND_WIZARD, 2);
+    CHECK(DecoySwarmActiveCount(&b3.decoys) == 0, "non-Speedster ultimate never clones");
 
     /* --- Overdrive: heat model + Flow (Task 4) --- */
     {

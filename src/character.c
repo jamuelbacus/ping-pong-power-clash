@@ -15,7 +15,7 @@ void InitCharacters() {
     strcpy(characters[SPEEDSTER].playstyle, "Fast reactions, pressure play");
     strcpy(characters[SPEEDSTER].skills[0], "Dash Return");
     strcpy(characters[SPEEDSTER].skills[1], "Speed Boost");
-    strcpy(characters[SPEEDSTER].skills[2], "Afterimage Hit");
+    strcpy(characters[SPEEDSTER].skills[2], "Shadow Clone");
     strcpy(characters[SPEEDSTER].strength, "Can save impossible shots");
     strcpy(characters[SPEEDSTER].weakness, "Low power, struggles against heavy shots");
 

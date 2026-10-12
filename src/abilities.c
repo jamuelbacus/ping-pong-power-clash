@@ -7,6 +7,7 @@
 #include "abilities.h"
 #include "layout.h"
 #include "trail.h"
+#include "decoy.h"
 #include "overdrive.h"
 
 #include <math.h>
@@ -61,17 +62,11 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
                     if (paddle->skill1Cooldown > 0.0f)
                         paddle->skill1Cooldown = fmaxf(0.0f, paddle->skill1Cooldown - OVERDRIVE_FLOW_TRIM);
                     break;
-                case 2: /* Afterimage Hit: faster ball for 5s plus a 5s ball trail.
-                         * Ball effects are always keyed at -1, the index the
-                         * ball reads regardless of which paddle fired. */
-                    EffectsPush(fx, (Effect){
-                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
-                        .stat = STAT_BALL_SPEED, .op = OP_MUL, .value = 1.35f,
-                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
-                    EffectsPush(fx, (Effect){
-                        .active = true, .target = TARGET_BALL, .paddleIndex = -1,
-                        .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f,
-                        .timeLeft = 5.0f, .duration = 5.0f, .color = color, .source = source });
+                case 2: /* Shadow Clone: split the ball into a pair of diverging
+                         * visual decoys. The clones are pure illusion — no
+                         * collision, no effects, no scoring — so the real ball
+                         * keeps all physics untouched. Replaces Afterimage Hit. */
+                    DecoySwarmSpawn(&ball->decoys, ball->position, ball->velocity);
                     break;
             }
             break;

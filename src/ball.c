@@ -46,6 +46,8 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
 
     /* The afterimage ring starts empty (no live ghosts) on every (re)init. */
     TrailHistoryInit(&ball->trail);
+    /* No Shadow Clone decoys are alive until the ultimate fires. */
+    DecoySwarmInit(&ball->decoys);
 }
 
 /* Derive the effective velocity from baseVelocity plus active ball effects.
