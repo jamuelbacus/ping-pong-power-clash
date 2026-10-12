@@ -36,4 +36,8 @@ bool ShieldActive(const Paddle* paddle);
 /* True while the Speedster Afterburner charged-return window is armed on this paddle. */
 bool AfterburnerArmed(const Paddle* paddle);
 
+/* Fraction of a skill's cooldown that has recovered: 0 while fully cooling
+ * (just used), 1 when ready. Clamped to [0,1]; maxCooldown <= 0 => 1. */
+float SkillRecoverFraction(float cooldown, float maxCooldown);
+
 #endif /* VISUALS_H */

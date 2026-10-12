@@ -42,3 +42,12 @@ bool ShieldActive(const Paddle* paddle) {
 bool AfterburnerArmed(const Paddle* paddle) {
     return paddle->afterburnerTimer > 0.0f;
 }
+
+float SkillRecoverFraction(float cooldown, float maxCooldown) {
+    if (maxCooldown <= 0.0f) return 1.0f;
+    if (cooldown <= 0.0f) return 1.0f;
+    float f = 1.0f - cooldown / maxCooldown;
+    if (f < 0.0f) f = 0.0f;
+    if (f > 1.0f) f = 1.0f;
+    return f;
+}

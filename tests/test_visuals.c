@@ -79,6 +79,16 @@ int main(void) {
     CHECK(EffectTintColor(&fx4, TARGET_PADDLE, 1).a == 0, "fortress tint is BLANK for the other paddle");
     CHECK(!PlayerHasActiveEffect(&fx4, 1), "fortress effect not counted for the other player");
 
+    /* Skill cooldown -> bar fill fraction. */
+    CHECK(SkillRecoverFraction(0.0f, 5.0f) == 1.0f, "ready skill fills the bar");
+    CHECK(SkillRecoverFraction(5.0f, 5.0f) == 0.0f, "just-used skill is an empty bar");
+    CHECK(SkillRecoverFraction(2.5f, 5.0f) == 0.5f, "half-cooled skill is half a bar");
+    CHECK(SkillRecoverFraction(-1.0f, 5.0f) == 1.0f, "negative cooldown clamps to ready");
+    CHECK(SkillRecoverFraction(9.0f, 5.0f) == 0.0f, "over-max cooldown clamps to empty");
+    CHECK(SkillRecoverFraction(1.0f, 0.0f) == 1.0f, "zero max cooldown is treated as ready");
+    CHECK(SkillRecoverFraction(3.0f, 5.0f) > 0.0f && SkillRecoverFraction(3.0f, 5.0f) < 1.0f,
+          "mid cooldown yields a partial bar");
+
     if (fails) { printf("RESULT: FAIL\n"); return 1; }
     printf("RESULT: PASS\n"); return 0;
 }
