@@ -115,7 +115,7 @@ Eight characters are defined in `src/character.c` and indexed by the `CharacterT
 
 | # | Character | Theme | Playstyle | Skill 1 | Skill 2 | Ultimate | Strength | Weakness |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Speedster | Cyber runner / ninja | Fast reactions, pressure play — passive **Overdrive**: the hotter the rally, the faster the paddle | Dash Return | Speed Boost | Shadow Clone | Can save impossible shots | Low power, struggles against heavy shots |
+| 0 | Speedster | Cyber runner / ninja | Fast reactions, pressure play — passive **Overdrive**: the hotter the rally, the faster the paddle | Dash Return | Afterburner | Shadow Clone | Elite saves and a charged power return | Offense depends on landing the smash |
 | 1 | Power Striker | Boxer, gladiator, or mech | Slow but devastating | Smash Shot | Heavy Paddle | Meteor Strike | Scores fast points | Poor recovery, easy to outmaneuver |
 | 2 | Grand Wizard | Mage, sorcerer | Ball manipulation | Curve Spell | Time Slow | Arcane Chaos | Confuses opponents | Requires timing & prediction |
 | 3 | Trickster | Jester, thief, hacker | Deception | Fake Ball | Reverse Spin | Mirror Field | Psychological advantage | Low raw damage |
@@ -133,7 +133,7 @@ consume. All values below are the literal constants from the code.
 | Character | Ability (key) | Cooldown | Effect |
 | --- | --- | --- | --- |
 | **Speedster** | Dash Return (`Q`) | 5 s | Instantly snaps the paddle's Y onto the ball's Y and records the pre-snap position into the paddle history, which a `STAT_TRAIL` marker draws for 0.3 s as **true afterimages** (see below). **Flow:** also banks +0.35 heat for 1.5 s and trims Skill 2's cooldown by 1 s (never below 0) |
-| | Speed Boost (`E`) | 7 s | `STAT_PADDLE_SPEED` × 2 for 4 s — it multiplies the *heat-scaled* base, so it stacks cleanly on top of Overdrive. **Flow:** same +0.35 heat for 1.5 s, trims Skill 1's cooldown by 1 s (never below 0) |
+| | Afterburner (`E`) | 7 s | Arms a 2 s charged-return window (`paddle->afterburnerTimer`). The next ball this paddle returns launches at base speed × 1.5 (`AFTERBURNER_SPEED_MULT`), **skipping** the ×1.005 `speedFactor` creep and clamped to `BALL_MAX_VELOCITY` (800); the window is consumed on hit and decays if unused — one power shot per cooldown. **Flow:** same +0.35 heat for 1.5 s, trims Skill 1's cooldown by 1 s (never below 0) |
 | | Shadow Clone (`R`) | 15 s | Splits the ball into **two visual decoys** that fan ±30° off its heading, bounce off the top/bottom walls, and fade out over 1.2 s. The clones are pure illusion — they never collide, score, or touch the effects registry; the real ball keeps all physics. Held in `Ball::decoys` (`src/decoy.c`), not the registry |
 | **Grand Wizard** | Curve Spell (`Q`) | 5 s | `STAT_BALL_CURVE` SET 220 for 3 s — a lateral bend that accumulates into `ball.lateralVelocity` (+X), on top of the effective velocity only |
 | | Time Slow (`E`) | 7 s | `STAT_BALL_SPEED` × 0.5 for 2 s |
@@ -152,8 +152,9 @@ Notes:
   operation differs, e.g. Wide Paddle then Iron Fortress).
 - `EffectsApply` composes all matching MULs → all ADDs → the first SET; when the last effect
   of a kind expires, the stat returns to its base value **exactly**.
-- Rendering is purely query-driven: ball tint/auras/trails and the defender shield barrier are
-  drawn from the registry (see §5, `visuals.c`).
+- Rendering is query-driven (see §5, `visuals.c`): ball tint/auras/trails read the registry, while
+  the Defender shield barrier and the Speedster Afterburner charge are pure paddle-state queries
+  (`ShieldActive`, `AfterburnerArmed`).
 
 ### Speedster passive — Overdrive
 
@@ -171,7 +172,7 @@ under pressure:
 | Input | Trigger | Heat contributed |
 | --- | --- | --- |
 | **Rally Heat** | Always on — every frame, from the ball's *current effective* speed | `clamp((ballSpeed − 360.5551) / 360.5551, 0, 1)` — the serve speed `\|(300, 200)\|` is the floor (heat 0), and at roughly twice that the meter is full: the harder the rally, the hotter the paddle. A Grand Wizard Time Slow cools it |
-| **Flow** | Casting Dash Return (`Q`) or Speed Boost (`E`) | `+0.35` for 1.5 s, plus the cast **trims the other skill's cooldown by 1 s** (never below 0). Chaining `Q` → `E` is the intended rhythm; re-casting refreshes the window, it never stacks |
+| **Flow** | Casting Dash Return (`Q`) or Afterburner (`E`) | `+0.35` for 1.5 s, plus the cast **trims the other skill's cooldown by 1 s** (never below 0). Chaining `Q` (save) → `E` (charged smash) is the intended rhythm; re-casting refreshes the window, it never stacks |
 | **Clutch** | Returning the ball off the **outer 25 % of your paddle** (top or bottom edge band) | `SET` to `1.0` for 0.5 s — full heat — **and** the return launches with its own ball afterimage for 0.5 s |
 
 Rules that fall out of the model:

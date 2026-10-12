@@ -15,12 +15,12 @@ Each recipe below was verified from the **project root**; every binary is writte
 | `test_effective_stats` | Base-vs-derived velocity; paddle speed ×2 and restore; effects applied exactly once | `abilities effects ball paddle character theme trail decoy` |
 | `test_ball_physics` | Wall clamp/bounce, `resetBall` (clears effects, recenters), timed-effect expiry, one contact = one bounce/creep | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
 | `test_game_over` | Reaching 5 enters `GAME_OVER`; simulation frozen there | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
-| `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields and clears Shadow Clone decoys | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
+| `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields + the Speedster Afterburner and clears Shadow Clone decoys | `visuals theme viewport assets ball paddle character effects utils abilities trail decoy` |
 | `test_cpu_policy` | One decision tick fires at most one ability; decision timer never negative | `abilities effects ball paddle character utils theme trail decoy` |
-| `test_speedster` | Dash snap + pre-snap footprint, Speed Boost ×2, Shadow Clone burst (spawns from either paddle, non-Speedster stays dark); Overdrive heat (rally floor/cap, Flow push + cooldown trim, Clutch edge spike) | `abilities effects ball paddle character theme trail decoy` |
+| `test_speedster` | Dash snap + pre-snap footprint, Afterburner charged return (arm/consume/×1.5 spike/no creep/cap/decay), Shadow Clone burst (spawns from either paddle, non-Speedster stays dark); Overdrive heat (rally floor/cap, Flow push + cooldown trim, Clutch edge spike) | `abilities effects ball paddle character theme trail decoy` |
 | `test_wizard` | Curve Spell/Arcane Chaos strengths + durations, self-restoring bend, base untouched | `abilities effects ball paddle character theme trail decoy` |
 | `test_defender` | Shield arm/consume/reflect (×1.3, no creep), Wide Paddle ×1.8, Iron Fortress full height + immovable | `abilities effects ball paddle character theme trail decoy` |
-| `test_visuals` | Pure visual queries match the registry: tint, trail, active-dot ownership, shield window | `visuals abilities effects ball paddle character theme trail decoy` |
+| `test_visuals` | Pure visual queries match the registry or paddle state: tint, trail, active-dot ownership, shield window, Afterburner window | `visuals abilities effects ball paddle character theme trail decoy` |
 | `test_trail` | Pure position-history ring: record/age/expire order, newest-first readout, fixed capacity, ghosts never move | `trail` |
 | `test_decoy` | Shadow Clone swarm: spawn/divergence, wall reflect, age fade, expiry, replace-not-stack, clear | `decoy` |
 
@@ -109,8 +109,8 @@ Expected output: `RESULT: PASS` (exit code 0).
 Reproduces and guards the old scoring bug where a ball that left the screen kept awarding a
 point every frame (because `resetBall` never repositioned it). Asserts that a single miss awards
 **exactly one** point, returns the ball to the play area, and re-serves toward the conceding
-side. Also guards R23: `resetBall` disarms any armed Defender `shieldTimer` so a powered
-reflect can't carry across a point.
+side. Also guards R23: `resetBall` disarms any armed Defender `shieldTimer` (and the Speedster
+`afterburnerTimer`) so a powered/charged return can't carry across a point.
 
 ```sh
 gcc tests/test_reset_ball.c \
@@ -145,15 +145,17 @@ Expected output: `RESULT: PASS` (exit code 0).
 Speedster abilities through `AbilitiesActivate`: Dash Return snaps the paddle to the ball's Y
 and arms a 0.3 s paddle `STAT_TRAIL` — parking the **pre-snap** position first, so the ring
 starts with a footprint where the dash flashed from and `UpdatePaddle` records the destination
-on the next frame; Speed Boost is `STAT_PADDLE_SPEED` ×2; Shadow Clone spawns `DECOY_SPAWN_COUNT`
-decoys at the ball's position (from either paddle's ultimate) and pushes **no** registry effect,
-while a non-Speedster ultimate leaves the swarm dark.
+on the next frame; Afterburner arms a 2 s `paddle->afterburnerTimer` window that `UpdateBall`
+consumes on the next return, launching at base speed ×1.5 with **no** `speedFactor` creep and
+clamped to `BALL_MAX_VELOCITY` (an uncharged return still creeps ×1.005); Shadow Clone spawns
+`DECOY_SPAWN_COUNT` decoys at the ball's position (from either paddle's ultimate) and pushes
+**no** registry effect, while a non-Speedster ultimate leaves the swarm dark.
 
 The **Overdrive** passive (heat model) is guarded here too: a serve-speed ball (`|(300,200)| =
 BALL_SPEED_BASE`) holds heat at 0 with `maxSpeed` at 500; a ball at twice that speed caps heat at
 1 → 750; Rally + Flow clamp **together** at full heat (750, never 837.5); `Q` banks +0.35 heat
 and trims `E`'s cooldown by 1 s while `E` mirrors it for `Q`'s, clamping at 0 and never going
-negative; Heat ×0.5 + Speed Boost ×2 stacks to 1175; Flow heat expires on schedule; and a
+negative; Afterburner leaves paddle speed to heat (no ×2 stack); Flow heat expires on schedule; and a
 non-Speedster paddle ignores heat entirely.
 
 **Clutch** runs through the real `UpdateBall` collision path: a return off the outer 25 % of the

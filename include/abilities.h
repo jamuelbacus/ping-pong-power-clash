@@ -32,6 +32,12 @@ static const float FORTRESS_PADDLE_HEIGHT = 540.0f;
  * multiple of its base speed (instead of the usual speedFactor step). */
 static const float DEFENDER_SHIELD_REFLECT_MULT = 1.3f;
 
+/* Speedster Afterburner: the next paddle hit within the armed window launches
+ * the ball at this multiple of its base speed (instead of the usual speedFactor
+ * step), clamped to BALL_MAX_VELOCITY. One charged return per activation. */
+static const float AFTERBURNER_SPEED_MULT = 1.5f;
+static const float AFTERBURNER_WINDOW = 2.0f;
+
 /* ability: 0 = skill1, 1 = skill2, 2 = ultimate. Sets that ability's cooldown
  * and pushes the character's effect(s). `paddleIndex` is the source of the
  * effects; ball-targeted effects inside use paddleIndex -1. */

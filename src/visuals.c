@@ -38,3 +38,7 @@ bool PlayerHasActiveEffect(const Effects* fx, int paddleIndex) {
 bool ShieldActive(const Paddle* paddle) {
     return paddle->shieldTimer > 0.0f;
 }
+
+bool AfterburnerArmed(const Paddle* paddle) {
+    return paddle->afterburnerTimer > 0.0f;
+}

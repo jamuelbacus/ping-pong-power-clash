@@ -71,6 +71,16 @@ int main(void) {
         failed = 1;
     }
 
+    /* Afterburner is a raw armed window like the shield: a charged return must
+     * not carry across a point either. */
+    game.paddle.afterburnerTimer = 3.0f;
+    game.player2Paddle.afterburnerTimer = 3.0f;
+    resetBall(&game);
+    if (game.paddle.afterburnerTimer != 0.0f || game.player2Paddle.afterburnerTimer != 0.0f) {
+        printf("FAIL: resetBall carried an armed Afterburner across the point\n");
+        failed = 1;
+    }
+
     /* Shadow Clone decoys are a hard stop at a point boundary too: arm a live
      * burst, reset, and no clone may survive into the next point. */
     DecoySwarmSpawn(&game.ball.decoys, game.ball.position, game.ball.velocity);

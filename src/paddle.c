@@ -40,6 +40,7 @@ void InitPaddle(Paddle* paddle, float x, float y, float width, float height, flo
     paddle->sizeMultiplier = 1.0f;
     paddle->immovable = false;
     paddle->shieldTimer = 0.0f;
+    paddle->afterburnerTimer = 0.0f;
     paddle->mirrorField = false;
     paddle->heavyPaddle = false;
     paddle->smashShotReady = false;
@@ -85,6 +86,12 @@ void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime,
     if (paddle->shieldTimer > 0.0f) {
         paddle->shieldTimer -= deltaTime;
         if (paddle->shieldTimer < 0.0f) paddle->shieldTimer = 0.0f;
+    }
+
+    // Speedster Afterburner: decay the armed charged-return window each frame.
+    if (paddle->afterburnerTimer > 0.0f) {
+        paddle->afterburnerTimer -= deltaTime;
+        if (paddle->afterburnerTimer < 0.0f) paddle->afterburnerTimer = 0.0f;
     }
 
     // Derive effective stats from base + active effects each frame.

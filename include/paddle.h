@@ -46,6 +46,7 @@ typedef struct Paddle {
     float sizeMultiplier;
     bool immovable;
     float shieldTimer; // Defender Shield Block: armed reflect window (seconds), consumed on hit
+    float afterburnerTimer; // Speedster Afterburner: armed charged-return window (seconds), consumed on hit
     // For Trickster mirror
     bool mirrorField;
     bool heavyPaddle;

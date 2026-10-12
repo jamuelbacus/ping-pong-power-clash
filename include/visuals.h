@@ -33,4 +33,7 @@ bool PlayerHasActiveEffect(const Effects* fx, int paddleIndex);
 /* True while the Defender shield reflect window is armed on this paddle. */
 bool ShieldActive(const Paddle* paddle);
 
+/* True while the Speedster Afterburner charged-return window is armed on this paddle. */
+bool AfterburnerArmed(const Paddle* paddle);
+
 #endif /* VISUALS_H */

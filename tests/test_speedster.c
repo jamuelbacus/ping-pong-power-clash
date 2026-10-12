@@ -9,6 +9,7 @@
 #include "layout.h"
 #include "overdrive.h"
 #include <stdio.h>
+#include <math.h>
 static int fails = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("FAIL: %s\n", m); fails = 1; } } while (0)
 
@@ -48,8 +49,10 @@ int main(void) {
         CHECK(n >= 2, "live dash trail records the destination on the next frame");
     }
 
-    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);   /* Speed Boost */
-    CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SPEED, 300.0f) == 600.0f, "speed boost x2");
+    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);   /* Afterburner */
+    CHECK(pad.afterburnerTimer == AFTERBURNER_WINDOW, "E arms the Afterburner window");
+    CHECK(!EffectsHas(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SPEED),
+          "Afterburner no longer buffs paddle speed");
 
     AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 2);   /* Shadow Clone */
     CHECK(DecoySwarmActiveCount(&b.decoys) == DECOY_SPAWN_COUNT,
@@ -112,12 +115,15 @@ int main(void) {
         UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
         CHECK(pad.maxSpeed > 587.4f && pad.maxSpeed < 587.6f, "heat 0.35 -> maxSpeed 587.5");
 
-        /* E arms the same 0.35 heat (refresh), trims Q, and its x2 stacks. */
+        /* E arms the same 0.35 heat (refresh) and trims Q. Afterburner no
+         * longer touches paddle speed, so heat alone drives maxSpeed. */
         pad.skill1Cooldown = SKILL1_COOLDOWN;
-        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);    /* Speed Boost */
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);    /* Afterburner */
         CHECK(pad.skill1Cooldown == 4.0f, "E trims Q's cooldown by 1s");
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);       /* heat 0.35 + x2 -> 1175 */
-        CHECK(pad.maxSpeed > 1174.9f && pad.maxSpeed < 1175.1f, "Speed Boost x2 stacks on heat (1175)");
+        CHECK(pad.afterburnerTimer == AFTERBURNER_WINDOW, "E arms the Afterburner window");
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);       /* heat 0.35 -> 587.5 */
+        CHECK(pad.maxSpeed > 587.4f && pad.maxSpeed < 587.6f,
+              "Afterburner leaves paddle speed to heat (587.5)");
 
         /* Flow expires. */
         EffectsUpdate(&fx, 1.6f);
@@ -125,8 +131,8 @@ int main(void) {
               "flow heat expires");
 
         /* Review focus 2: rally heat + flow heat must clamp at full heat (750),
-         * never sum past it (837.5). Wipe the still-live x2 Speed Boost first so
-         * this reads the heat clamp on its own. */
+         * never sum past it (837.5). Wipe any live Flow so this reads the heat
+         * clamp on its own. */
         EffectsClear(&fx);
         b.velocity.x = 900.0f; b.velocity.y = 0.0f;
         EffectsPush(&fx, (Effect){ .active=true, .target=TARGET_PADDLE, .paddleIndex=0,
@@ -211,6 +217,60 @@ int main(void) {
             CHECK(EffectDurationOf(&fx5, TARGET_PADDLE, 0, STAT_PADDLE_HEAT) == OVERDRIVE_CLUTCH_DURATION,
                   "clutch SET slot carries the 0.5s window, not flow's 1.5s");
         }
+    }
+
+    /* --- Afterburner: charged return (arm, consume, spike, cap, decay) --- */
+    {
+        Effects fx; EffectsInit(&fx);
+        Ball b; InitBall(&b, 62, 250, BALL_SIZE, -BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
+        Paddle p1; InitPaddle(&p1, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+        Paddle p2; InitPaddle(&p2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+
+        AbilitiesActivate(&fx, &b, &p1, 0, SPEEDSTER, 1);   /* arm */
+        CHECK(p1.afterburnerTimer == AFTERBURNER_WINDOW, "E arms the Afterburner window");
+        float pre = sqrtf(b.baseVelocity.x * b.baseVelocity.x + b.baseVelocity.y * b.baseVelocity.y);
+        float preFactor = b.speedFactor;
+        UpdateBall(&b, &fx, 1.0f/60.0f, 960, 540, &p1, &p2);   /* charged contact */
+        CHECK(p1.afterburnerTimer == 0.0f, "Afterburner is consumed on hit");
+        CHECK(b.speedFactor == preFactor, "charged return does not creep speedFactor");
+        float post = sqrtf(b.baseVelocity.x * b.baseVelocity.x + b.baseVelocity.y * b.baseVelocity.y);
+        CHECK(fabsf(post - pre * AFTERBURNER_SPEED_MULT) < 0.01f,
+              "charged return launches at base speed x AFTERBURNER_SPEED_MULT");
+
+        /* Without the window, the same contact keeps the normal creep step. */
+        Effects ufx; EffectsInit(&ufx);
+        Ball ub; InitBall(&ub, 62, 250, BALL_SIZE, -BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
+        Paddle u1; InitPaddle(&u1, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+        Paddle u2; InitPaddle(&u2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+        float uFactor = ub.speedFactor;
+        UpdateBall(&ub, &ufx, 1.0f/60.0f, 960, 540, &u1, &u2);
+        CHECK(ub.speedFactor == uFactor * 1.005f, "an uncharged return keeps the normal creep step");
+
+        /* The charged return respects the game's ball speed cap. */
+        Effects cfx; EffectsInit(&cfx);
+        Ball cb; InitBall(&cb, 62, 250, BALL_SIZE, -721.1102f, 0.0f, BALL_COLOR);
+        Paddle c1; InitPaddle(&c1, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+        Paddle c2; InitPaddle(&c2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+        AbilitiesActivate(&cfx, &cb, &c1, 0, SPEEDSTER, 1);
+        UpdateBall(&cb, &cfx, 1.0f/60.0f, 960, 540, &c1, &c2);
+        float capped = sqrtf(cb.baseVelocity.x * cb.baseVelocity.x + cb.baseVelocity.y * cb.baseVelocity.y);
+        CHECK(capped <= BALL_MAX_VELOCITY + 0.01f, "charged return never exceeds BALL_MAX_VELOCITY");
+
+        /* The armed window decays in UpdatePaddle and expires at exactly 0. */
+        Effects dfx; EffectsInit(&dfx);
+        Ball db; InitBall(&db, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
+        Paddle dpad; InitPaddle(&dpad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+        AbilitiesActivate(&dfx, &db, &dpad, 0, SPEEDSTER, 1);
+        UpdatePaddle(&dpad, &dfx, 0, 1.0f/60.0f, 540, &db);
+        CHECK(dpad.afterburnerTimer < AFTERBURNER_WINDOW, "Afterburner window decays over time");
+        for (int i = 0; i < 200; i++) UpdatePaddle(&dpad, &dfx, 0, 1.0f/60.0f, 540, &db);
+        CHECK(dpad.afterburnerTimer == 0.0f, "Afterburner window expires at zero");
+
+        /* Only the Speedster ever arms the window. */
+        Effects nfx; EffectsInit(&nfx);
+        Paddle npad; InitPaddle(&npad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+        AbilitiesActivate(&nfx, &db, &npad, 0, GRAND_WIZARD, 1);   /* Time Slow */
+        CHECK(npad.afterburnerTimer == 0.0f, "non-Speedster never arms the Afterburner window");
     }
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }

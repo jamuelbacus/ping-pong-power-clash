@@ -14,10 +14,10 @@ void InitCharacters() {
     strcpy(characters[SPEEDSTER].theme, "Cyber runner / ninja");
     strcpy(characters[SPEEDSTER].playstyle, "Fast reactions, pressure play");
     strcpy(characters[SPEEDSTER].skills[0], "Dash Return");
-    strcpy(characters[SPEEDSTER].skills[1], "Speed Boost");
+    strcpy(characters[SPEEDSTER].skills[1], "Afterburner");
     strcpy(characters[SPEEDSTER].skills[2], "Shadow Clone");
-    strcpy(characters[SPEEDSTER].strength, "Can save impossible shots");
-    strcpy(characters[SPEEDSTER].weakness, "Low power, struggles against heavy shots");
+    strcpy(characters[SPEEDSTER].strength, "Elite saves and a charged power return");
+    strcpy(characters[SPEEDSTER].weakness, "Offense depends on landing the smash");
 
     // Power Striker
     strcpy(characters[POWER_STRIKER].name, "Power Striker");

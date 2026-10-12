@@ -48,11 +48,11 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
                     if (paddle->skill2Cooldown > 0.0f)
                         paddle->skill2Cooldown = fmaxf(0.0f, paddle->skill2Cooldown - OVERDRIVE_FLOW_TRIM);
                     break;
-                case 1: /* Speed Boost: doubled paddle speed for 4s. */
-                    EffectsPush(fx, (Effect){
-                        .active = true, .target = TARGET_PADDLE, .paddleIndex = source,
-                        .stat = STAT_PADDLE_SPEED, .op = OP_MUL, .value = 2.0f,
-                        .timeLeft = 4.0f, .duration = 4.0f, .color = color, .source = source });
+                case 1: /* Afterburner: arm a charged-return window. The next ball
+                         * this paddle returns launches at a fixed speed spike
+                         * (consumed by UpdateBall, which skips the usual
+                         * speedFactor step) — a genuine one-shot power return. */
+                    paddle->afterburnerTimer = AFTERBURNER_WINDOW;
                     /* Flow: same heat pulse, trimming the other side (Q). */
                     EffectsPush(fx, (Effect){
                         .active = true, .target = TARGET_PADDLE, .paddleIndex = source,

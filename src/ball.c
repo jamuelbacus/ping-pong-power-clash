@@ -108,18 +108,24 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
         // Angle-based bounce
         float hitPos = (ball->position.y - paddle1->position.y) / paddle1->size.y;  // 0 (top) to 1 (bottom)
         float angle = (hitPos - 0.5f) * PI / 2;  // Max 90 degrees up/down
-        // Defender Shield Block: consume the struck paddle's armed shield and
-        // reflect at a fixed base-speed multiplier. A shielded hit must not
-        // also apply the regular speedFactor creep.
+        // Defender Shield Block / Speedster Afterburner: both are one-shot
+        // armed windows that replace the usual speedFactor step with a fixed
+        // base-speed multiplier, and both are consumed by this contact.
         bool shielded = paddle1->shieldTimer > 0.0f;
         if (shielded) paddle1->shieldTimer = 0.0f;
+        bool charged = paddle1->afterburnerTimer > 0.0f;
+        if (charged) paddle1->afterburnerTimer = 0.0f;
+        bool powered = shielded || charged;
         float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
-        float speed = shielded ? baseSpeed * DEFENDER_SHIELD_REFLECT_MULT : baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
+        float speed = powered
+            ? baseSpeed * (shielded ? DEFENDER_SHIELD_REFLECT_MULT : AFTERBURNER_SPEED_MULT)
+            : baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
+        if (charged && speed > BALL_MAX_VELOCITY) speed = BALL_MAX_VELOCITY;  // a charged return respects the cap
         float dirX = (paddle1->position.x < screenWidth / 2) ? 1.0f : -1.0f;
         ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
         ball->lateralVelocity = 0.0f; /* a paddle hit resets the curve bend */
-        if (!shielded) {
+        if (!powered) {
             ball->speedFactor *= 1.005f;
             if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
         }
@@ -149,17 +155,24 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
         float angle = (hitPos - 0.5f) * PI / 2;
-        // Defender Shield Block: consume the struck paddle's armed shield and
-        // reflect at a fixed base-speed multiplier (no speedFactor creep).
+        // Defender Shield Block / Speedster Afterburner: both are one-shot
+        // armed windows that replace the usual speedFactor step with a fixed
+        // base-speed multiplier (no speedFactor creep), consumed on contact.
         bool shielded = paddle2->shieldTimer > 0.0f;
         if (shielded) paddle2->shieldTimer = 0.0f;
+        bool charged = paddle2->afterburnerTimer > 0.0f;
+        if (charged) paddle2->afterburnerTimer = 0.0f;
+        bool powered = shielded || charged;
         float baseSpeed = sqrt(ball->baseVelocity.x * ball->baseVelocity.x + ball->baseVelocity.y * ball->baseVelocity.y);
-        float speed = shielded ? baseSpeed * DEFENDER_SHIELD_REFLECT_MULT : baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
+        float speed = powered
+            ? baseSpeed * (shielded ? DEFENDER_SHIELD_REFLECT_MULT : AFTERBURNER_SPEED_MULT)
+            : baseSpeed * ball->speedFactor;  // derive from base so effects apply exactly once
+        if (charged && speed > BALL_MAX_VELOCITY) speed = BALL_MAX_VELOCITY;  // a charged return respects the cap
         float dirX = (paddle2->position.x < screenWidth / 2) ? 1.0f : -1.0f;
         ball->baseVelocity.x = speed * cos(angle) * dirX;
         ball->baseVelocity.y = speed * sin(angle);
         ball->lateralVelocity = 0.0f; /* a paddle hit resets the curve bend */
-        if (!shielded) {
+        if (!powered) {
             ball->speedFactor *= 1.005f;
             if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
         }

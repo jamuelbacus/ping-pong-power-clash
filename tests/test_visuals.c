@@ -62,6 +62,15 @@ int main(void) {
     UpdatePaddle(&pad, &fx3, 0, 1.5f, 540, &b);   /* real decay path, clamped to 0 */
     CHECK(!ShieldActive(&pad), "shield window expired/consumed");
 
+    /* Speedster Afterburner arms a timed charge window on the paddle. */
+    Effects fx4b; EffectsInit(&fx4b);
+    Paddle apad; InitPaddle(&apad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+    AbilitiesActivate(&fx4b, &b, &apad, 0, SPEEDSTER, 1);
+    CHECK(AfterburnerArmed(&apad), "afterburner window armed");
+    apad.afterburnerTimer = 1.0f;
+    UpdatePaddle(&apad, &fx4b, 0, 1.5f, 540, &b);   /* real decay path, clamped to 0 */
+    CHECK(!AfterburnerArmed(&apad), "afterburner window expired/consumed");
+
     /* Iron Fortress tints the owning paddle with the defender accent. */
     Effects fx4; EffectsInit(&fx4);
     AbilitiesActivate(&fx4, &b, &pad, 0, DEFENDER, 2);

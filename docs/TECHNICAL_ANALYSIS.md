@@ -201,9 +201,11 @@ All ability effects go through a **fixed 64-slot timed registry** (`include/effe
 - `Ball.baseVelocity` is the **source of truth**; wall/paddle collisions write here.
 - `Ball.velocity` is derived each frame from `baseVelocity` + active registry effects
   (`ApplyBallEffects`), so a timed slow/speed/bend can never leave permanent state behind.
-- `Ball.speedFactor` creeps ×1.005 per **non-shielded** paddle hit (cap 2.0) and contributes to
-  the base magnitude on each bounce. Defender's Shield Block replaces the creep with a fixed
-  ×1.3 reflect and consumes the paddle's `shieldTimer` window.
+- `Ball.speedFactor` creeps ×1.005 per **unpowered** paddle hit (cap 2.0) and contributes to
+  the base magnitude on each bounce. Two one-shot armed windows replace the creep with a fixed
+  base-speed multiplier, each consumed by the contact: Defender's Shield Block (×1.3,
+  `paddle->shieldTimer`) and Speedster's Afterburner (×1.5, `paddle->afterburnerTimer`, clamped
+  to `BALL_MAX_VELOCITY`).
 - `Ball.lateralVelocity` rides on the effective velocity only; `baseVelocity` stays pristine
   through the curve bend.
 - Paddle collisions separate the ball past the paddle face by `PADDLE_SEPARATION_EPSILON`
@@ -215,8 +217,9 @@ Confirmed against `include/ball.h` and `include/paddle.h`. These are placeholder
 unimplemented characters/skills — no live code reads them (except where noted):
 
 **Live fields that must NOT be confused with dead ones:** `Ball::trail`, `Paddle::trail` (the
-afterimage history rings, §5.6), `Ball::decoys` (the Shadow Clone swarm, §5.7) and
-`Paddle::shieldTimer` (Defender's armed window) are all
+afterimage history rings, §5.6), `Ball::decoys` (the Shadow Clone swarm, §5.7),
+`Paddle::shieldTimer` (Defender's armed window) and `Paddle::afterburnerTimer` (Speedster's
+charged-return window, §5.8) are all
 consumed. The dash and trail features carry **no dead flag of their own** — "is a dash trail
 running?" is answered by a live `STAT_TRAIL` registry marker, and the ghost positions come from
 recorded history, not from a boolean or timer field:
@@ -317,6 +320,27 @@ like the ball but are not physics entities. It lives entirely outside the effect
 - Abilities: `AbilitiesActivate` SPEEDSTER case 2 calls `DecoySwarmSpawn`. It produces **no**
   registry effect, so the old Afterimage Hit `STAT_BALL_SPEED ×1.35` + ball-`STAT_TRAIL` buffs are
   gone with it.
+
+### 5.8 Speedster Afterburner (charged power return)
+
+The Speedster's Skill 2 (`E`) is a **charged return**: press `E` to arm a short window, and the
+next ball that paddle returns launches at a fixed speed spike. It reuses the same one-shot
+armed-window pattern as Defender's Shield Block, one field over.
+
+- `include/abilities.h`: `AFTERBURNER_SPEED_MULT` (1.5), `AFTERBURNER_WINDOW` (2.0 s).
+- `AbilitiesActivate` SPEEDSTER case 1 sets `paddle->afterburnerTimer = AFTERBURNER_WINDOW` (raw
+  paddle state, like `shieldTimer`) and still pushes the Flow heat pulse + trims `Q`'s cooldown,
+  so the `Q` → `E` rhythm survives the rework.
+- `UpdatePaddle` decays the window each frame (floor 0), alongside `shieldTimer`.
+- `UpdateBall` consumes it on the next paddle contact in **both** paddle branches: the return uses
+  `baseSpeed × AFTERBURNER_SPEED_MULT` instead of `baseSpeed × speedFactor`, skips the creep step,
+  and is clamped to `BALL_MAX_VELOCITY` (800). `resetBall` disarms it like the shield.
+- `visuals.c` exposes the pure query `AfterburnerArmed(paddle)`; `DrawEffects` draws a charged
+  outline in the Speedster accent while armed, and the HUD active-dot condition includes it (R22).
+- The CPU Speedster gets it for free: `CpuTickAbilities` already prefers Skill 2 over Skill 1.
+
+Replaces the old **Speed Boost** (`STAT_PADDLE_SPEED × 2` for 4 s), which overlapped both Dash
+Return and Overdrive and left the kit with no offense.
 
 ---
 

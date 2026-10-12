@@ -76,6 +76,9 @@ static void resetBall(Game* game) {
      * not carry into the next point (R23). */
     game->paddle.shieldTimer = 0.0f;
     game->player2Paddle.shieldTimer = 0.0f;
+    /* ...and any armed Speedster Afterburner charge, same rule. */
+    game->paddle.afterburnerTimer = 0.0f;
+    game->player2Paddle.afterburnerTimer = 0.0f;
     ball->slowTimer = 0.0f;
     ball->lagTimer = 0.0f;
     ball->lateralVelocity = 0.0f;
@@ -183,6 +186,14 @@ static void DrawEffects(const Effects* fx, const Ball* ball, const Paddle* p1, c
                 : p->position.x - 4.0f;
             Rectangle barrier = { x, p->position.y, 2.0f, p->size.y };
             DrawGlowRectLines(barrier, 2.0f, characters[DEFENDER].accent, 4.0f);
+        }
+
+        /* Speedster Afterburner: a charged outline while the power return is
+         * armed, so the window is readable before the ball arrives. */
+        if (AfterburnerArmed(p)) {
+            Rectangle charge = { p->position.x - 2.0f, p->position.y - 2.0f,
+                                 p->size.x + 4.0f, p->size.y + 4.0f };
+            DrawGlowRectLines(charge, 2.0f, characters[SPEEDSTER].accent, 8.0f);
         }
     }
 }
@@ -300,9 +311,9 @@ static void DrawGameplay(const Game* game) {
      * timed effects (or the Defender shield window) is live. Deliberately not
      * a per-slot ability->effect map — the registry is the only source of
      * truth, so this can never drift from what DrawEffects actually renders. */
-    if (PlayerHasActiveEffect(&game->effects, 0) || ShieldActive(&game->paddle))
+    if (PlayerHasActiveEffect(&game->effects, 0) || ShieldActive(&game->paddle) || AfterburnerArmed(&game->paddle))
         DrawGlowCircle((Vector2){ HUD_P1.x + HUD_P1.width - 10.0f, HUD_P1.y + 10.0f }, 4.0f, p1, 6.0f);
-    if (PlayerHasActiveEffect(&game->effects, 1) || ShieldActive(&game->player2Paddle))
+    if (PlayerHasActiveEffect(&game->effects, 1) || ShieldActive(&game->player2Paddle) || AfterburnerArmed(&game->player2Paddle))
         DrawGlowCircle((Vector2){ HUD_P2.x + HUD_P2.width - 10.0f, HUD_P2.y + 10.0f }, 4.0f, p2, 6.0f);
 }
 
