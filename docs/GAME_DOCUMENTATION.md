@@ -28,11 +28,13 @@ Matches are first-to-5, single arena, no power-ups on the field.
 ### The ball
 
 - Spawns at center (`480, 270`), radius `10` (`BALL_SIZE`), red (`BALL_COLOR`).
-- The ball has an authoritative **`baseVelocity`** (starts `(300, 200)` px/s —
+- The ball has an authoritative **`baseVelocity`** (starts `(400, 267)` px/s —
   `BALL_BASE_VELOCITY_X/Y`) and a derived effective **`velocity`**. Walls and paddles write to
   `baseVelocity`; the effective velocity is re-derived from it every frame.
-- Hard speed cap of `800` px/s (`BALL_MAX_VELOCITY`); `CapVelocity` clamps the effective
-  velocity after every update.
+- Hard speed cap of `800` px/s (`BALL_MAX_VELOCITY`); the effective velocity is clamped after
+  every update.
+- Base rally speed magnitude is `~480.93` px/s (`BALL_SPEED_BASE`), derived from the serve
+  vector.
 - Top/bottom wall bounces reflect `baseVelocity.y` and **clamp the position** back inside the
   wall (`radius` from the edge), so the ball can never stick or tunnel through a wall.
 - On a paddle hit the bounce angle depends on **where** it struck the paddle: hit distance along
@@ -59,14 +61,14 @@ Matches are first-to-5, single arena, no power-ups on the field.
 
 ### The paddles
 
-- Size `20 × 100` (`PADDLE_WIDTH × PADDLE_HEIGHT`), positioned left at `(50, 200)` and right at
+- Size `20 × 76` (`PADDLE_WIDTH × PADDLE_HEIGHT`), positioned left at `(50, 200)` and right at
   `(890, 200)`.
 - Movement snaps to a max speed on key press and stops instantly on release: player 1 and
-  player 2 / CPU share `maxSpeed` 500 px/s (`InitGame` passes `maxSpeed 500` to both paddles).
+  player 2 / CPU share `maxSpeed` 320 px/s (`InitGame` passes `maxSpeed 320` to both paddles).
   The `speed` init argument (300 for player 1, 250 for player 2) is a dead field never read, as
   are the `accel` / `friction` tuning fields — movement snaps instantly (`UpdatePaddle` sets
   `velocityY = ±maxSpeed`). Speedster's **Overdrive** passive re-derives that cap every frame
-  from the rally's intensity (see §3): 500 px/s at zero heat, up to 750 px/s at full heat.
+  from the rally's intensity (see §3): 320 px/s at zero heat, up to 480 px/s at full heat.
 - CPU paddles track the ball's Y position directly at `maxSpeed`.
 - `UpdatePaddle` **derives effective stats from the effects registry every frame**:
   `maxSpeed` from any `STAT_PADDLE_SPEED` effect, paddle height from any `STAT_PADDLE_SIZE`
@@ -80,12 +82,15 @@ Matches are first-to-5, single arena, no power-ups on the field.
 - Dark neon theme (`theme.c`): deep indigo-black background (`THEME_BG`), a dim violet 40 px grid
   with a slow horizontal drift, a soft radial glow at center, and additive "glow" primitives for
   panels, lines, circles, and text.
-- A bright center line at `x = 480`; scores are drawn at the top quarters, character names
-  beneath them; each player's skill HUD panel sits at the bottom (`HUD_P1 {10, 430, 230, 100}`,
-  `HUD_P2 {720, 430, 230, 100}`).
+- A bright center line at `x = 480`. A single translucent top-centre scoreline shows both scores,
+  both names, and per-skill cooldown bars (fill = recovery, glow = active effect). The HUD
+  footprint constants are defined in `layout.h` (`HUD_SCORELINE_TOP`, `HUD_SCORELINE_BOTTOM`,
+  `HUD_SCORELINE_WIDTH`, `HUD_SCORE_FONT`, `HUD_NAME_FONT`, `HUD_KEY_FONT`, `HUD_BAR_WIDTH`,
+  `HUD_BAR_HEIGHT`, `HUD_BAR_GAP`, `HUD_SCORE_OFFSET`).
 - Rendering is unpremultiplied in the 960 × 540 virtual canvas; the presenter (`viewport.c`)
   letterboxes it into the real window with black bars and maps the mouse back into virtual
-  coordinates (`GetVirtualMouse`).
+  coordinates (`GetVirtualMouse`). The ball is drawn above the HUD (inverted draw order), so the
+  HUD never occludes the ball.
 
 ### Scoring & winning
 
@@ -163,7 +168,7 @@ gets it, including the CPU (no CPU-only gating). It drives one hidden **heat** s
 that widens the paddle's max speed every frame, before any `STAT_PADDLE_SPEED` multiplier runs:
 
 ```
-maxSpeed = 500 × (1 + 0.5 × heat)      →  500 px/s at heat 0 … 750 px/s at heat 1
+maxSpeed = 320 × (1 + 0.5 × heat)      →  320 px/s at heat 0 … 480 px/s at heat 1
 ```
 
 Three inputs feed that one scalar, so the fastest paddle in the match is the one that is already
@@ -171,14 +176,14 @@ under pressure:
 
 | Input | Trigger | Heat contributed |
 | --- | --- | --- |
-| **Rally Heat** | Always on — every frame, from the ball's *current effective* speed | `clamp((ballSpeed − 360.5551) / 360.5551, 0, 1)` — the serve speed `\|(300, 200)\|` is the floor (heat 0), and at roughly twice that the meter is full: the harder the rally, the hotter the paddle. A Grand Wizard Time Slow cools it |
+| **Rally Heat** | Always on — every frame, from the ball's *current effective* speed | `clamp((ballSpeed − BALL_SPEED_BASE) / BALL_SPEED_BASE, 0, 1)` where `BALL_SPEED_BASE` is `~480.93` px/s (`\|(400, 267)\|`) — the serve speed is the floor (heat 0), and at roughly twice that the meter is full: the harder the rally, the hotter the paddle. A Grand Wizard Time Slow cools it |
 | **Flow** | Casting Dash Return (`Q`) or Afterburner (`E`) | `+0.35` for 1.5 s, plus the cast **trims the other skill's cooldown by 1 s** (never below 0). Chaining `Q` (save) → `E` (charged smash) is the intended rhythm; re-casting refreshes the window, it never stacks |
 | **Clutch** | Returning the ball off the **outer 25 % of your paddle** (top or bottom edge band) | `SET` to `1.0` for 0.5 s — full heat — **and** the return launches with its own ball afterimage for 0.5 s |
 
 Rules that fall out of the model:
 
-- Rally + Flow are summed and then **clamped to 1**: full heat is full heat (750 px/s), never
-  837 px/s or anything else in between.
+- Rally + Flow are summed and then **clamped to 1**: full heat is full heat (480 px/s), never
+  more than 1.5× the base speed in between.
 - **Clutch overrides Flow**, it does not add to it — a clutch return sets heat to 1 for its
   shorter 0.5 s window. Because heat is keyed per paddle, the latest activation on that paddle's
   heat slot is the only one that counts.

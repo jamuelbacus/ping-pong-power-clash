@@ -20,8 +20,10 @@ technical health of the codebase, and how the effects/abilities architecture wor
   three fully implemented characters (Speedster, Grand Wizard, Defender) driven by a timed
   effects registry. Speedster additionally carries the **Overdrive** heat passive (Rally Heat /
   Flow / Clutch → paddle max speed), and every trail — ball and dash — is a true position-history
-  afterimage from the fixed-capacity ring in `src/trail.c`. The remaining five characters are
-  roster data only.
+  afterimage from the fixed-capacity ring in `src/trail.c`. Gameplay draw order: centre line →
+  scoreline HUD → ball → decoys → paddles → effects, with the HUD drawn first and translucently so
+  the ball always renders above it. `SkillRecoverFraction` computes per-skill cooldown recovery for the
+  HUD bars. The remaining five characters are roster data only.
 
 **To build on this machine:** a compiler + raylib for your OS, then the one-liner in §4.
 
@@ -259,7 +261,7 @@ live in `include/overdrive.h`:
 
 | Source | Rule | Where |
 | --- | --- | --- |
-| **Rally** (always on) | `rally = clamp((\|ball->velocity\| - BALL_SPEED_BASE) / BALL_SPEED_BASE, 0, 1)`, computed from the **effective** velocity, so a hard rally raises heat and Time Slow ×0.5 lowers it. `BALL_SPEED_BASE` is the float32 rounding of `\|(300,200)\|` (the serve speed), which is what keeps `test_effective_stats`'s exact `maxSpeed == 1000.0f` / `500.0f` guards valid at serve speed | `src/paddle.c` `UpdatePaddle` |
+| **Rally** (always on) | `rally = clamp((\|ball->velocity\| - BALL_SPEED_BASE) / BALL_SPEED_BASE, 0, 1)`, computed from the **effective** velocity, so a hard rally raises heat and Time Slow ×0.5 lowers it. `BALL_SPEED_BASE` is the float32 rounding of `\|(400,267)\|` (the serve speed), which is what keeps rally heat at zero at the tuned serve speed | `src/paddle.c` `UpdatePaddle` |
 | **Flow** (`Q`/`E` use) | `OP_ADD` `OVERDRIVE_FLOW_HEAT` (0.35) for `OVERDRIVE_FLOW_DURATION` (1.5 s), plus trimming the **other** ability's cooldown by `OVERDRIVE_FLOW_TRIM` (1 s), clamped at 0 | `src/abilities.c`, SPEEDSTER cases 0 and 1 |
 | **Clutch** (edge return) | `OP_SET` `OVERDRIVE_CLUTCH_HEAT` (1.0) for `OVERDRIVE_CLUTCH_DURATION` (0.5 s) **plus** a ball `OP_SET` `STAT_TRAIL` for `OVERDRIVE_CLUTCH_TRAIL` (0.5 s), keyed at the acting paddle's index (0 and 1 blocks mirror each other) | `src/ball.c`, inside both paddle-collision branches |
 
@@ -268,13 +270,13 @@ Derivation in `UpdatePaddle`:
 ```c
 float heat = EffectsApply(fx, TARGET_PADDLE, idx, STAT_PADDLE_HEAT, rally);  /* rally + flow, clamped */
 heat = clamp(heat, 0.0f, 1.0f);
-float base = paddle->originalMaxSpeed * (1.0f + OVERDRIVE_SPEED_PER_HEAT * heat);  /* 500 .. 750 */
+float base = paddle->originalMaxSpeed * (1.0f + OVERDRIVE_SPEED_PER_HEAT * heat);  /* 320 .. 480 */
 paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, idx, STAT_PADDLE_SPEED, base);
 ```
 
 Non-Speedster paddles keep the exact pre-existing derivation (`originalMaxSpeed` → `STAT_PADDLE_SPEED`).
 Note `BALL_SPEED_BASE` (`include/overdrive.h`) is load-bearing beyond heat: it must stay
-bit-identical to `sqrtf(300*300 + 200*200)` so a serve-speed ball yields heat exactly 0.
+bit-identical to `sqrtf(400*400 + 267*267)` so a serve-speed ball yields heat exactly 0.
 
 **True afterimages.** `include/trail.h` + `src/trail.c` add a pure, fixed-capacity position ring
 (no allocation):
@@ -358,4 +360,7 @@ Return and Overdrive and left the kit with no offense.
 5. **Curve sign control** — the lateral bend currently always accumulates toward `+X`;
    sign-following-caster or velocity-based direction would be a good follow-up.
 6. **Audio** (placeholders exist in `assets/audio`), then polish: asset-path handling, dead
-   tuning fields, and any balance feedback from testing.
+   tuning fields, and any balance feedback from testing. The tuned gameplay values are now
+   `PADDLE_HEIGHT 76`, paddle `maxSpeed 320`, `BALL_BASE_VELOCITY_(X,Y)` (400,267),
+   `BALL_SPEED_BASE ~480.93` with the HUD using `SkillRecoverFraction` and inverted draw order
+   (HUD first, ball above).
