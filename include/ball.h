@@ -13,8 +13,8 @@
 #include "decoy.h"
 
 static const float BALL_SIZE = 10.0f;
-static const float BALL_BASE_VELOCITY_X = 300.0f;
-static const float BALL_BASE_VELOCITY_Y = 200.0f;
+static const float BALL_BASE_VELOCITY_X = 400.0f;
+static const float BALL_BASE_VELOCITY_Y = 267.0f;
 static const float BALL_MAX_VELOCITY = 800.0f;
 static const float BALL_SPEED_INCREMENT = 20.0f;
 static const float CURVE_DECAY_RATE = 400.0f; /* px/s of lateral bend shed per second once the curve effect ends */

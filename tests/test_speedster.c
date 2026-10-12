@@ -83,7 +83,7 @@ int main(void) {
     /* --- Overdrive: heat model + Flow (Task 4) --- */
     {
         Effects fx; EffectsInit(&fx);
-        Ball b; InitBall(&b, 480, 270, BALL_SIZE, 360.5551f, 0.0f, BALL_COLOR);  /* serve speed */
+        Ball b; InitBall(&b, 480, 270, BALL_SIZE, BALL_SPEED_BASE, 0.0f, BALL_COLOR);  /* serve speed */
         Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
 
         /* Rally: serve-speed ball -> heat 0 -> maxSpeed 320. */
@@ -91,12 +91,12 @@ int main(void) {
         CHECK(pad.maxSpeed > 319.99f && pad.maxSpeed < 320.01f, "serve-speed ball: heat 0, maxSpeed 320");
 
         /* Rally: fast ball (2x base) -> heat 1 -> 320 * 1.5 = 480. */
-        b.velocity.x = 721.1102f; b.velocity.y = 0.0f;
+        b.velocity.x = 2.0f * BALL_SPEED_BASE; b.velocity.y = 0.0f;
         UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
         CHECK(pad.maxSpeed > 479.9f && pad.maxSpeed <= 480.1f, "2x-speed ball: heat caps at 1 -> 480");
 
         /* Rally clamps from above and from below. */
-        b.velocity.x = 900.0f; b.velocity.y = 0.0f;
+        b.velocity.x = 2000.0f; b.velocity.y = 0.0f;
         UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
         CHECK(pad.maxSpeed > 479.9f && pad.maxSpeed <= 480.1f, "extremely fast ball still caps at 480");
         b.velocity.x = 167.0f; b.velocity.y = 0.0f;
@@ -111,7 +111,7 @@ int main(void) {
               "Q arms 0.35 heat");
         CHECK(pad.skill2Cooldown == 6.0f, "Q trims E's cooldown by 1s");
         /* Heat at mid ball speed: 320 * (1 + 0.5*0.35) = 376. */
-        b.velocity.x = 360.5551f; b.velocity.y = 0.0f;
+        b.velocity.x = BALL_SPEED_BASE; b.velocity.y = 0.0f;
         UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
         CHECK(pad.maxSpeed > 375.9f && pad.maxSpeed < 376.1f, "heat 0.35 -> maxSpeed 376");
 
@@ -134,7 +134,7 @@ int main(void) {
          * never sum past it (552). Wipe any live Flow so this reads the heat
          * clamp on its own. */
         EffectsClear(&fx);
-        b.velocity.x = 900.0f; b.velocity.y = 0.0f;
+        b.velocity.x = 2000.0f; b.velocity.y = 0.0f;
         EffectsPush(&fx, (Effect){ .active=true, .target=TARGET_PADDLE, .paddleIndex=0,
             .stat=STAT_PADDLE_HEAT, .op=OP_ADD, .value=OVERDRIVE_FLOW_HEAT,
             .timeLeft=OVERDRIVE_FLOW_DURATION, .duration=OVERDRIVE_FLOW_DURATION,
@@ -153,7 +153,7 @@ int main(void) {
     /* --- Overdrive: heat is a Speedster-only passive --- */
     {
         Effects fx; EffectsInit(&fx);
-        Ball b; InitBall(&b, 480, 270, BALL_SIZE, 721.1102f, 0.0f, BALL_COLOR);
+        Ball b; InitBall(&b, 480, 270, BALL_SIZE, 2.0f * BALL_SPEED_BASE, 0.0f, BALL_COLOR);
         Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
         UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
         CHECK(pad.maxSpeed > 319.99f && pad.maxSpeed < 320.01f,
