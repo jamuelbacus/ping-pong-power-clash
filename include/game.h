@@ -9,11 +9,11 @@
 #include "utils.h"
 #include "effects.h"
 
-static const int WINDOW_WIDTH = 960;
-static const int WINDOW_HEIGHT = 540;
+static const int WINDOW_WIDTH = 1024;
+static const int WINDOW_HEIGHT = 576;
 static const char* WINDOW_TITLE = "Ping Pong: Power Clash";
 
-static const int WINNING_SCORE = 5;
+static const int WINNING_SCORE = 7;
 
 typedef enum GameState { MENU, CHARACTER_SELECT, PLAY_CPU, PLAY_PVP, GAME_OVER } GameState;
 

@@ -15,7 +15,7 @@ int main(void) {
 
     g.playerScore = WINNING_SCORE;
     UpdateGame(&g, 1.0f/60.0f);                 /* detects win */
-    CHECK(g.gameState == GAME_OVER, "reaching 5 enters GAME_OVER");
+    CHECK(g.gameState == GAME_OVER, "reaching 7 enters GAME_OVER");
     CHECK(GameWinner(&g) == 1, "player 1 reported as winner");
 
     /* frozen: ball does not move while GAME_OVER */

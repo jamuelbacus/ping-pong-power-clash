@@ -15,7 +15,7 @@ int main(void) {
     EffectsInit(&g.effects);
     g.playerScore = g.player2Score = 0;
 
-    UpdateBall(&g.ball, &g.effects, 1.0f/60.0f, 960, 540, &g.paddle, &g.player2Paddle);
+    UpdateBall(&g.ball, &g.effects, 1.0f/60.0f, WINDOW_WIDTH, WINDOW_HEIGHT, &g.paddle, &g.player2Paddle);
     CHECK(g.ball.position.y >= g.ball.radius, "ball clamped inside the top wall");
     CHECK(g.ball.velocity.y > 0, "ball bounced off the top wall");
 
@@ -62,8 +62,8 @@ int main(void) {
     InitPaddle(&rp, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
     EffectsInit(&g.effects);
     float f0 = sep.speedFactor;
-    UpdateBall(&sep, &g.effects, 0.0f, 960, 540, &lp, &rp);
-    UpdateBall(&sep, &g.effects, 0.0f, 960, 540, &lp, &rp);
+    UpdateBall(&sep, &g.effects, 0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, &lp, &rp);
+    UpdateBall(&sep, &g.effects, 0.0f, WINDOW_WIDTH, WINDOW_HEIGHT, &lp, &rp);
     CHECK(fabsf(sep.speedFactor - f0 * 1.005f) < 1e-6f,
           "one paddle contact advances speedFactor exactly one step");
     CHECK(sep.position.x > lp.position.x + lp.size.x + sep.radius,
