@@ -159,6 +159,12 @@ int main(void) {
         CHECK(EffectDurationOf(&fx, TARGET_BALL, -1, STAT_TRAIL) == OVERDRIVE_CLUTCH_TRAIL,
               "clutch ball trail lasts 0.5s");
 
+        /* Clutch heat must reach the consumer (Review Focus 6): OP_SET 1.0 -> maxSpeed 750. */
+        b.velocity.x = -360.0f; b.velocity.y = 0.0f;   /* rally floor: heat is pure Clutch */
+        UpdatePaddle(&p1, &fx, 0, 1.0f/60.0f, 540, &b);
+        CHECK(p1.maxSpeed > 749.9f && p1.maxSpeed <= 750.1f,
+              "clutch heat reaches maxSpeed through UpdatePaddle (750)");
+
         /* Center hit: no clutch. */
         Effects fx2; EffectsInit(&fx2);
         Ball b2; InitBall(&b2, 55.0f, 250.0f, BALL_SIZE, -360.0f, 0.0f, BALL_COLOR); /* hitPos 0.5 */
