@@ -18,7 +18,10 @@ technical health of the codebase, and how the effects/abilities architecture wor
   `game.exe` and the Windows libs are intentionally tracked.
 - The game is a **playable prototype**: match loop, first-to-5 scoring, game-over/rematch, and
   three fully implemented characters (Speedster, Grand Wizard, Defender) driven by a timed
-  effects registry. The remaining five characters are roster data only.
+  effects registry. Speedster additionally carries the **Overdrive** heat passive (Rally Heat /
+  Flow / Clutch → paddle max speed), and every trail — ball and dash — is a true position-history
+  afterimage from the fixed-capacity ring in `src/trail.c`. The remaining five characters are
+  roster data only.
 
 **To build on this machine:** a compiler + raylib for your OS, then the one-liner in §4.
 
@@ -126,7 +129,7 @@ run: game
 
 ### 4.4 Headless tests
 
-The regression suites in `tests/` build separately from `src/`. Full recipes for all **ten**
+The regression suites in `tests/` build separately from `src/`. Full recipes for all **eleven**
 test programs, with their exact source lists, are in [`tests/README.md`](../tests/README.md).
 
 ---
@@ -138,7 +141,8 @@ test programs, with their exact source lists, are in [`tests/README.md`](../test
 Clean, small, well-separated C modules in C17 with matching headers. Constants live in headers;
 `Game` owns the world; `layout.h` centralizes UI geometry so draw code and hit-tests can't drift.
 The architecture is a good foundation and has grown the effects/abilities layer without new
-allocation.
+allocation, plus the pure, allocation-free position-history ring (`src/trail.c`) that backs all
+afterimage rendering.
 
 ### 5.2 Current architecture: effects registry + abilities
 
@@ -148,7 +152,8 @@ All ability effects go through a **fixed 64-slot timed registry** (`include/effe
 - **`Effect` entry** — `{ active, target, paddleIndex, stat, op, value, timeLeft, duration,
   color, source }`. `target` is `TARGET_BALL` or `TARGET_PADDLE`. `stat` is one of
   `STAT_BALL_SPEED|VEL_X|VEL_Y|SIZE`, `STAT_PADDLE_SPEED|SIZE`, `STAT_TRAIL`,
-  `STAT_BALL_CURVE`, `STAT_PADDLE_IMMOVABLE`. `op` is `OP_MUL | OP_ADD | OP_SET`.
+  `STAT_BALL_CURVE`, `STAT_PADDLE_IMMOVABLE`, and (appended last) `STAT_PADDLE_HEAT`. `op` is
+  `OP_MUL | OP_ADD | OP_SET`.
 - **Keying & refresh (R21)** — a slot's key is `(target, paddleIndex, stat, source)`.
   `EffectsPush` **full-replaces** a matching live slot (including `op` and value), so the latest
   activation is authoritative — re-casting an ability, even one hitting the same stat with a
@@ -168,14 +173,28 @@ All ability effects go through a **fixed 64-slot timed registry** (`include/effe
   `Ball::lateralVelocity` (decays at `CURVE_DECAY_RATE` on expiry, reset on paddle hit), and
   caps the result at `BALL_MAX_VELOCITY`. `UpdatePaddle` derives `maxSpeed`, paddle height
   (`STAT_PADDLE_SIZE`, bases `originalMaxSpeed`/`originalSize`) and `immovable` (a live
-  `STAT_PADDLE_IMMOVABLE` marker) every frame. Rendering is **query-driven**: `visuals.c`
+  `STAT_PADDLE_IMMOVABLE` marker) every frame — and, for a Speedster paddle only, derives
+  `maxSpeed` from `STAT_PADDLE_HEAT` first (see §5.6). Rendering is **query-driven**: `visuals.c`
   exposes `EffectTintColor` / `EffectTrailActive` / `PlayerHasActiveEffect` / `ShieldActive`
   (pure, headless-testable), and `DrawEffects` in `game.c` draws ball tint/aura/trail, paddle
   aura + dash ghosts, and the defender shield barrier from those queries.
 - **Activation & CPU** — `AbilitiesActivate` (in `src/abilities.c`) owns every ability's
   cooldown and pushes its effects. `CpuTickAbilities` implements the decision-interval policy
   (one roll per `CPU_DECISION_INTERVAL`, approach-gated, ult > skill2 > skill1, at most one
-  ability per tick). Both are detailed in `GAME_DOCUMENTATION.md` §3.
+  ability per tick) — and because Speedster's passive is character-innate, the CPU benefits from
+  Overdrive whenever it picks Speedster, with no separate gating (Ruling C2). Both are detailed in
+  `GAME_DOCUMENTATION.md` §3.
+- **Ruling C1 — clutch "wall band" is the paddle edge band.** The design called for a danger band
+  near the returner's end wall, but both paddles sit at a fixed x (`50` / `890`), so every return
+  happens within ~70 px of the wall and a literal wall-distance reading would fire on every hit.
+  The band is therefore read off the **paddle height**: `hitPos < 0.25 || hitPos > 0.75`, the
+  outer quarter of the face (`OVERDRIVE_CLUTCH_EDGE`). Concept name stays "Clutch band".
+- **Ruling C3 — latest activation is authoritative.** All heat effects share the registry key
+  `(TARGET_PADDLE, idx, STAT_PADDLE_HEAT, source=idx)`, so `EffectsPush` **refreshes** one slot
+  instead of stacking. Intended consequences: re-using `Q`/`E` while Flow is live refreshes the
+  window rather than adding; a Clutch `OP_SET` replaces a live Flow `OP_ADD` (and the SET pass
+  beats the ADD pass); a clutch ball-trail push refreshes the same ball `STAT_TRAIL` slot
+  Afterimage Hit uses, so a clutch return during the ultimate truncates its remaining trail.
 
 ### 5.3 Ball model (authoritative base + derived velocity)
 
@@ -195,6 +214,12 @@ All ability effects go through a **fixed 64-slot timed registry** (`include/effe
 Confirmed against `include/ball.h` and `include/paddle.h`. These are placeholders for
 unimplemented characters/skills — no live code reads them (except where noted):
 
+**Live fields that must NOT be confused with dead ones:** `Ball::trail`, `Paddle::trail` (the
+afterimage history rings, §5.6) and `Paddle::shieldTimer` (Defender's armed window) are all
+consumed. The dash and trail features carry **no dead flag of their own** — "is a dash trail
+running?" is answered by a live `STAT_TRAIL` registry marker, and the ghost positions come from
+recorded history, not from a boolean or timer field:
+
 **`Ball`** — `slowTimer` (only zeroed in `InitBall`/`resetBall`; never read), `sizeMultiplier`
 (read by ball drawing but always 1.0 — no live effect pushes `STAT_BALL_SIZE`),
 `unpredictableBounce`, `lagTimer`, `randomEffects` (init/zeroed only).
@@ -212,13 +237,63 @@ speed/bend changes come from `STAT_BALL_SPEED` / `STAT_BALL_CURVE` registry effe
 **Removed entirely in this branch** (no longer in the structs): `cpuScore` (renamed to
 `player2Score` — `isCpu` stays), `curveAngle` (replaced by the registry `STAT_BALL_CURVE` +
 `Ball::lateralVelocity`), `shieldBlock` (replaced by `Paddle::shieldTimer`), and the fake-ball /
-illusions fields (ball trail now comes from the registry's `STAT_TRAIL` markers).
+illusions fields — the trail is now a real data structure (`Ball::trail` / `Paddle::trail`,
+`TrailHistory` in `include/trail.h`) that `DrawEffects` renders from, so `STAT_TRAIL` is no longer
+a marker nothing reads; its ghosts come from recorded history, not from any `*Active` / `*Timer`
+flag.
 
 ### 5.5 Compiler-warning checklist
 
 `gcc -std=c17 -Wall -Wextra src/*.c ...` builds clean except one known, benign warning:
 `include/game.h`: `WINDOW_TITLE` is a `static const` used only by `main.c`, so the declaration
 in the header is unused in other translation units. No other warnings.
+
+### 5.6 Speedster Overdrive (heat) and true afterimages
+
+**Heat.** One scalar in `[0, 1]` per paddle, derived every frame for Speedster only; all constants
+live in `include/overdrive.h`:
+
+| Source | Rule | Where |
+| --- | --- | --- |
+| **Rally** (always on) | `rally = clamp((\|ball->velocity\| - BALL_SPEED_BASE) / BALL_SPEED_BASE, 0, 1)`, computed from the **effective** velocity, so Afterimage Hit ×1.35 raises heat and Time Slow ×0.5 lowers it. `BALL_SPEED_BASE` is the float32 rounding of `\|(300,200)\|` (the serve speed), which is what keeps `test_effective_stats`'s exact `maxSpeed == 1000.0f` / `500.0f` guards valid at serve speed | `src/paddle.c` `UpdatePaddle` |
+| **Flow** (`Q`/`E` use) | `OP_ADD` `OVERDRIVE_FLOW_HEAT` (0.35) for `OVERDRIVE_FLOW_DURATION` (1.5 s), plus trimming the **other** ability's cooldown by `OVERDRIVE_FLOW_TRIM` (1 s), clamped at 0 | `src/abilities.c`, SPEEDSTER cases 0 and 1 |
+| **Clutch** (edge return) | `OP_SET` `OVERDRIVE_CLUTCH_HEAT` (1.0) for `OVERDRIVE_CLUTCH_DURATION` (0.5 s) **plus** a ball `OP_SET` `STAT_TRAIL` for `OVERDRIVE_CLUTCH_TRAIL` (0.5 s), keyed at the acting paddle's index (0 and 1 blocks mirror each other) | `src/ball.c`, inside both paddle-collision branches |
+
+Derivation in `UpdatePaddle`:
+
+```c
+float heat = EffectsApply(fx, TARGET_PADDLE, idx, STAT_PADDLE_HEAT, rally);  /* rally + flow, clamped */
+heat = clamp(heat, 0.0f, 1.0f);
+float base = paddle->originalMaxSpeed * (1.0f + OVERDRIVE_SPEED_PER_HEAT * heat);  /* 500 .. 750 */
+paddle->maxSpeed = EffectsApply(fx, TARGET_PADDLE, idx, STAT_PADDLE_SPEED, base);
+```
+
+Non-Speedster paddles keep the exact pre-existing derivation (`originalMaxSpeed` → `STAT_PADDLE_SPEED`).
+Note `BALL_SPEED_BASE` (`include/overdrive.h`) is load-bearing beyond heat: it must stay
+bit-identical to `sqrtf(300*300 + 200*200)` so a serve-speed ball yields heat exactly 0.
+
+**True afterimages.** `include/trail.h` + `src/trail.c` add a pure, fixed-capacity position ring
+(no allocation):
+
+- `TRAIL_MAX_GHOSTS 30` (≈0.5 s at 60 fps), `TRAIL_MAX_AGE 0.5f`.
+- `TrailGhost { Vector2 pos; float age; bool live; }` — one position sample; `TrailHistory {
+  TrailGhost ghosts[30]; int head; }` — the ring.
+- `TrailHistoryRecord` pushes at `head` and advances it modulo the capacity (oldest slot is
+  overwritten); `TrailHistoryUpdate` ages every live ghost and expires it at
+  `age >= TRAIL_MAX_AGE`; `TrailActiveGhosts(h, n, out)` copies the live ghosts **newest-first**
+  (returning how many fit in `n`).
+- Embedded as `Ball::trail` and `Paddle::trail` (both `Paddle`s get one), initialized in
+  `InitBall` / `InitPaddle`.
+- **Recording points:** `UpdateBall` calls `TrailHistoryUpdate(&ball->trail, dt)` and records
+  `ball->position` only while a ball `STAT_TRAIL` marker is live; `UpdatePaddle` does the same for
+  its own trail. Dash Return (`AbilitiesActivate`, SPEEDSTER case 0) records the **pre-snap**
+  position before teleporting, so the dash leaves a footprint where it flashed from. `resetBall`
+  re-inits all three rings so a mid-point trail never ghosts across a serve.
+- **Rendering:** `DrawEffects` (`src/game.c`) gates on the registry markers (`EffectTrailActive`,
+  R22 — the registry stays the only source of truth for *whether* a trail exists), then draws
+  each live ghost as a fading accent circle/rect at its recorded position, alpha falling from
+  `0.5` toward `0.1` as `age / TRAIL_MAX_AGE`. This replaced the old velocity-offset "comet tail"
+  ghosts, which used to glide with the entity.
 
 ---
 

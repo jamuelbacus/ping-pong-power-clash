@@ -65,7 +65,8 @@ Matches are first-to-5, single arena, no power-ups on the field.
   player 2 / CPU share `maxSpeed` 500 px/s (`InitGame` passes `maxSpeed 500` to both paddles).
   The `speed` init argument (300 for player 1, 250 for player 2) is a dead field never read, as
   are the `accel` / `friction` tuning fields — movement snaps instantly (`UpdatePaddle` sets
-  `velocityY = ±maxSpeed`).
+  `velocityY = ±maxSpeed`). Speedster's **Overdrive** passive re-derives that cap every frame
+  from the rally's intensity (see §3): 500 px/s at zero heat, up to 750 px/s at full heat.
 - CPU paddles track the ball's Y position directly at `maxSpeed`.
 - `UpdatePaddle` **derives effective stats from the effects registry every frame**:
   `maxSpeed` from any `STAT_PADDLE_SPEED` effect, paddle height from any `STAT_PADDLE_SIZE`
@@ -114,7 +115,7 @@ Eight characters are defined in `src/character.c` and indexed by the `CharacterT
 
 | # | Character | Theme | Playstyle | Skill 1 | Skill 2 | Ultimate | Strength | Weakness |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Speedster | Cyber runner / ninja | Fast reactions, pressure play | Dash Return | Speed Boost | Afterimage Hit | Can save impossible shots | Low power, struggles against heavy shots |
+| 0 | Speedster | Cyber runner / ninja | Fast reactions, pressure play — passive **Overdrive**: the hotter the rally, the faster the paddle | Dash Return | Speed Boost | Afterimage Hit | Can save impossible shots | Low power, struggles against heavy shots |
 | 1 | Power Striker | Boxer, gladiator, or mech | Slow but devastating | Smash Shot | Heavy Paddle | Meteor Strike | Scores fast points | Poor recovery, easy to outmaneuver |
 | 2 | Grand Wizard | Mage, sorcerer | Ball manipulation | Curve Spell | Time Slow | Arcane Chaos | Confuses opponents | Requires timing & prediction |
 | 3 | Trickster | Jester, thief, hacker | Deception | Fake Ball | Reverse Spin | Mirror Field | Psychological advantage | Low raw damage |
@@ -131,9 +132,9 @@ consume. All values below are the literal constants from the code.
 
 | Character | Ability (key) | Cooldown | Effect |
 | --- | --- | --- | --- |
-| **Speedster** | Dash Return (`Q`) | 5 s | Instantly snaps the paddle's Y onto the ball's Y; leaves a **paddle** `STAT_TRAIL` marker for 0.3 s (afterimage ghosts) |
-| | Speed Boost (`E`) | 7 s | `STAT_PADDLE_SPEED` × 2 for 4 s (paddle max speed doubles) |
-| | Afterimage Hit (`R`) | 15 s | `STAT_BALL_SPEED` × 1.35 for 5 s + **ball** `STAT_TRAIL` for 5 s (ghost trail behind the ball) |
+| **Speedster** | Dash Return (`Q`) | 5 s | Instantly snaps the paddle's Y onto the ball's Y and records the pre-snap position into the paddle history, which a `STAT_TRAIL` marker draws for 0.3 s as **true afterimages** (see below). **Flow:** also banks +0.35 heat for 1.5 s and trims Skill 2's cooldown by 1 s (never below 0) |
+| | Speed Boost (`E`) | 7 s | `STAT_PADDLE_SPEED` × 2 for 4 s — it multiplies the *heat-scaled* base, so it stacks cleanly on top of Overdrive. **Flow:** same +0.35 heat for 1.5 s, trims Skill 1's cooldown by 1 s (never below 0) |
+| | Afterimage Hit (`R`) | 15 s | `STAT_BALL_SPEED` × 1.35 for 5 s + **ball** `STAT_TRAIL` for 5 s. The trail is a true afterimage: ghosts sit at recorded positions and fade out over 0.5 s, so the echo traces the ball's real arc (including Grand Wizard curve bends) |
 | **Grand Wizard** | Curve Spell (`Q`) | 5 s | `STAT_BALL_CURVE` SET 220 for 3 s — a lateral bend that accumulates into `ball.lateralVelocity` (+X), on top of the effective velocity only |
 | | Time Slow (`E`) | 7 s | `STAT_BALL_SPEED` × 0.5 for 2 s |
 | | Arcane Chaos (`R`) | 15 s | `STAT_BALL_CURVE` SET 400 for 5 s (stronger bend; same registry key as Curve Spell, so re-casting refreshes it) |
@@ -153,6 +154,54 @@ Notes:
   of a kind expires, the stat returns to its base value **exactly**.
 - Rendering is purely query-driven: ball tint/auras/trails and the defender shield barrier are
   drawn from the registry (see §5, `visuals.c`).
+
+### Speedster passive — Overdrive
+
+Overdrive is the game's only **passive**, and it is character-innate: whoever plays Speedster
+gets it, including the CPU (no CPU-only gating). It drives one hidden **heat** scalar in `[0, 1]`
+that widens the paddle's max speed every frame, before any `STAT_PADDLE_SPEED` multiplier runs:
+
+```
+maxSpeed = 500 × (1 + 0.5 × heat)      →  500 px/s at heat 0 … 750 px/s at heat 1
+```
+
+Three inputs feed that one scalar, so the fastest paddle in the match is the one that is already
+under pressure:
+
+| Input | Trigger | Heat contributed |
+| --- | --- | --- |
+| **Rally Heat** | Always on — every frame, from the ball's *current effective* speed | `clamp((ballSpeed − 360.5551) / 360.5551, 0, 1)` — the serve speed `\|(300, 200)\|` is the floor (heat 0), and at roughly twice that the meter is full. Afterimage Hit's ×1.35 raises heat; a Grand Wizard Time Slow cools it |
+| **Flow** | Casting Dash Return (`Q`) or Speed Boost (`E`) | `+0.35` for 1.5 s, plus the cast **trims the other skill's cooldown by 1 s** (never below 0). Chaining `Q` → `E` is the intended rhythm; re-casting refreshes the window, it never stacks |
+| **Clutch** | Returning the ball off the **outer 25 % of your paddle** (top or bottom edge band) | `SET` to `1.0` for 0.5 s — full heat — **and** the return launches with its own ball afterimage for 0.5 s |
+
+Rules that fall out of the model:
+
+- Rally + Flow are summed and then **clamped to 1**: full heat is full heat (750 px/s), never
+  837 px/s or anything else in between.
+- **Clutch overrides Flow**, it does not add to it — a clutch return sets heat to 1 for its
+  shorter 0.5 s window. Because heat is keyed per paddle, the latest activation on that paddle's
+  heat slot is the only one that counts.
+- Heat is strictly per-paddle: player 1's rally can never push player 2's speed cap.
+- The "danger band near your wall" is read as the **edge band of the paddle height**
+  (`hitPos < 0.25 || hitPos > 0.75`). Both paddles sit at a fixed x (left / right), so every
+  return happens near the end wall and a literal wall-distance reading would fire on every hit;
+  the outer quarter is the honest version of the same gamble — a risky return that pays out.
+  Centre returns stay calm.
+- Balance is deliberately conservative and all of the numbers above are tunable constants.
+
+### True afterimages
+
+Trail ghosts are no longer a comet tail sliding behind the entity — they **never move**. While a
+`STAT_TRAIL` marker is live, the entity's current position is recorded every frame into a fixed
+30-entry ring (`src/trail.c`), and `DrawEffects` (`src/game.c`) draws each surviving record as a
+ghost that fades out over 0.5 s, sitting exactly where the entity has *been*. All three Speedster
+trails use it: the ball trail of Afterimage Hit / Clutch (and the paddle trail of Dash Return)
+are decaying position echoes, not velocity offsets. Consequences:
+
+- The ball echo traces the ball's real path, including Grand Wizard curve bends.
+- Dash Return parks the paddle's **pre-snap** position before it teleports, so a dash leaves a
+  footprint where it flashed *from* plus echoes along the destination.
+- Scoring wipes all three rings, so nothing ghosts across a serve.
 
 ### CPU ability usage
 
@@ -236,6 +285,7 @@ while (!WindowShouldClose()) {
 | `src/paddle.c` | Paddle init, movement, CPU tracking, cooldowns, shield decay, effective-stat derivation (`maxSpeed`/size/`immovable`), player ability input, drawing |
 | `src/abilities.c` | `AbilitiesActivate` (cooldown + effect push per character/ability) and the CPU decision policy `CpuTickAbilities` |
 | `src/effects.c` | Fixed 64-slot timed effect registry: push (refresh-first), update/expiry, `EffectsApply` (MUL→ADD→SET), queries |
+| `src/trail.c` | Fixed-capacity true-afterimage ring (`TrailHistory`): record positions, age them, expire at `TRAIL_MAX_AGE` |
 | `src/visuals.c` | Pure visual-state queries over the registry (`EffectTintColor`, `EffectTrailActive`, `PlayerHasActiveEffect`, `ShieldActive`) — no drawing, unit-testable |
 | `src/character.c` | Roster data (`characters[8]`: names, themes, playstyles, skills, accents) |
 | `src/theme.c` | Neon palette + glow drawing primitives + background grid |
@@ -250,15 +300,19 @@ while (!WindowShouldClose()) {
   `player2Score`), `gameState`, selection state, assets, and the `Effects` registry.
 - `Ball` (`include/ball.h`): `position`, `baseVelocity` (source of truth — collisions write
   here), `velocity` (derived effective value physics moves by), `radius`, `color`, `speedFactor`
-  (rally creep, ×1.005 per non-shielded hit, cap 2.0), `lateralVelocity` (curve bend).
+  (rally creep, ×1.005 per non-shielded hit, cap 2.0), `lateralVelocity` (curve bend), and
+  `trail` (a `TrailHistory` afterimage ring).
   `Effects` applies on top through `STAT_BALL_SPEED` / `STAT_BALL_VEL_X/Y` / `STAT_BALL_SIZE`
   / `STAT_BALL_CURVE` / `STAT_TRAIL`.
 - `Effects` (`include/effects.h`): fixed 64-slot array of `Effect` entries; each entry keys
   `(target, paddleIndex, stat, op(eration), value, timeLeft/duration, color, source)`.
+- `TrailHistory` (`include/trail.h`): fixed 30-entry ring of `{ pos, age, live }` samples
+  (`TRAIL_MAX_GHOSTS` ghosts, `TRAIL_MAX_AGE` 0.5 s), embedded as `Ball::trail` and both
+  `Paddle::trail` — the true-afterimage position history.
 - `Paddle` (`include/paddle.h`): transform + movement basics, `maxSpeed` base, cooldowns,
   `cpuDecisionTimer`, `shieldTimer` (armed reflect window), `immovable` (derived per frame from
   `STAT_PADDLE_IMMOVABLE`), `originalSize`/`originalMaxSpeed` (the bases effects scale from),
-  plus legacy dead fields (see §6).
+  `trail` (afterimage history), plus legacy dead fields (see §6).
 - `Character` (`include/character.h`): fixed-size `char` arrays for name/theme/playstyle/3
   skills/strength/weakness + neon `accent` color.
 
@@ -273,10 +327,12 @@ UpdateGame ──▶ EffectsUpdate (expire timed effects)
         ├─▶ win check (≥5) ──▶ GAME_OVER (freeze)
         │
         ├─▶ UpdateBall ──▶ curve accumulate/decay ──▶ walls + paddle1 + paddle2
-        │        │            (collisions write baseVelocity; shield paths skip creep)
+        │        │            (collisions write baseVelocity; shield paths skip creep;
+        │        │             clutch edge returns spike heat + arm the ball trail)
         │        └─▶ out of bounds ──▶ score++ → resetBall (effects + shields cleared)
         │
-        ├─▶ UpdatePaddle ×2 ──▶ cooldowns / shield decay / derived stats / input / move
+        ├─▶ UpdatePaddle ×2 ──▶ cooldowns / shield decay / derived stats (Speedster: heat
+        │        │              feeds maxSpeed) / input / move / trail history record
         │
         └─▶ CpuTickAbilities (decision interval, one roll, ult-first, approach-gated)
 
@@ -311,6 +367,11 @@ way (now resolved and guarded by regression tests in `tests/`):
 9. **Hard-coded UI coordinates** — moved to named `layout.h` constants.
 10. **Per-frame CPU rolls** — replaced by the decision-interval policy.
 11. **No `SetTargetFPS`** — fixed at 60; window is resizable with F11 fullscreen and a neon theme.
+12. **Fake afterimages** — the old velocity-offset comet tail was replaced by the position-history
+    ring in `src/trail.c`: ghosts sit where the entity has actually been and fade out by age, so
+    the echo traces the real path (including curve bends). (`test_trail`)
+13. **No Speedster passive** — Overdrive adds heat-driven paddle speed (Rally Heat / Flow / Clutch)
+    for whoever plays Speedster, CPU included. (`test_speedster`)
 
 **Remaining / follow-up**
 
@@ -357,7 +418,7 @@ gcc src/*.c -Iinclude $(pkg-config --cflags --libs raylib) -lm -o game
 All tests live in `tests/` and build outside `src/` (see `tests/README.md` for recipes and
 expected `RESULT: PASS` output). The suites cover the effects registry, effective-stat
 derivation, ball physics, reset/scoring, game-over behaviour, CPU policy, each implemented
-character, and the visual-state queries.
+character, the visual-state queries, and the afterimage position-history ring.
 
 ### Runtime assets
 

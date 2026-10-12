@@ -8,7 +8,10 @@
 #ifndef OVERDRIVE_H
 #define OVERDRIVE_H
 
-/* |(300,200)| serve speed — heat stays 0 while the ball is this slow. */
+/* |(300,200)| serve speed — heat stays 0 while the ball is this slow. Keep this literal
+ * bit-identical to the float32 rounding of sqrtf(300^2 + 200^2): a serve-speed ball must
+ * yield heat exactly 0, which is what makes test_effective_stats' exact "maxSpeed ==
+ * 1000.0f" / "== 500.0f" guards hold. */
 static const float BALL_SPEED_BASE = 360.5551f;
 static const float OVERDRIVE_SPEED_PER_HEAT = 0.5f;      /* +50% paddle speed at full heat */
 static const float OVERDRIVE_FLOW_HEAT = 0.35f;

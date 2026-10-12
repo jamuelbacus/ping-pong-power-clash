@@ -10,6 +10,7 @@
  *   gcc tests/test_reset_ball.c \
  *       src/visuals.c src/theme.c src/viewport.c src/assets.c \
  *       src/ball.c src/paddle.c src/character.c src/effects.c src/utils.c src/abilities.c \
+ *       src/trail.c \
  *       -Iinclude $(pkg-config --cflags --libs raylib) -lm -o /tmp/test_reset_ball
  *   /tmp/test_reset_ball
  */

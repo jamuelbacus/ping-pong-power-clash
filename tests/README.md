@@ -17,7 +17,7 @@ Each recipe below was verified from the **project root**; every binary is writte
 | `test_game_over` | Reaching 5 enters `GAME_OVER`; simulation frozen there | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
 | `test_reset_ball` | A single miss awards exactly one point and returns the ball to play; `resetBall` disarms shields | `visuals theme viewport assets ball paddle character effects utils abilities trail` |
 | `test_cpu_policy` | One decision tick fires at most one ability; decision timer never negative | `abilities effects ball paddle character utils theme trail` |
-| `test_speedster` | Dash snap + trail, Speed Boost ×2, Afterimage Hit ×1.35 + ball trail at index −1 | `abilities effects ball paddle character theme trail` |
+| `test_speedster` | Dash snap + pre-snap footprint, Speed Boost ×2, Afterimage Hit ×1.35 + ball trail at index −1; Overdrive heat (rally floor/cap, Flow push + cooldown trim, Clutch edge spike) | `abilities effects ball paddle character theme trail` |
 | `test_wizard` | Curve Spell/Arcane Chaos strengths + durations, self-restoring bend, base untouched | `abilities effects ball paddle character theme trail` |
 | `test_defender` | Shield arm/consume/reflect (×1.3, no creep), Wide Paddle ×1.8, Iron Fortress full height + immovable | `abilities effects ball paddle character theme trail` |
 | `test_visuals` | Pure visual queries match the registry: tint, trail, active-dot ownership, shield window | `visuals abilities effects ball paddle character theme trail` |
@@ -140,9 +140,24 @@ Expected output: `RESULT: PASS` (exit code 0).
 ## `test_speedster`
 
 Speedster abilities through `AbilitiesActivate`: Dash Return snaps the paddle to the ball's Y
-and arms a 0.3 s paddle `STAT_TRAIL`; Speed Boost is `STAT_PADDLE_SPEED` ×2; Afterimage Hit is
+and arms a 0.3 s paddle `STAT_TRAIL` — parking the **pre-snap** position first, so the ring
+starts with a footprint where the dash flashed from and `UpdatePaddle` records the destination
+on the next frame; Speed Boost is `STAT_PADDLE_SPEED` ×2; Afterimage Hit is
 `STAT_BALL_SPEED` ×1.35 plus a 5 s ball `STAT_TRAIL`, landing at the ball's read index `-1`
 regardless of which paddle activated it.
+
+The **Overdrive** passive (heat model) is guarded here too: a serve-speed ball (`|(300,200)| =
+BALL_SPEED_BASE`) holds heat at 0 with `maxSpeed` at 500; a ball at twice that speed caps heat at
+1 → 750; Rally + Flow clamp **together** at full heat (750, never 837.5); `Q` banks +0.35 heat
+and trims `E`'s cooldown by 1 s while `E` mirrors it for `Q`'s, clamping at 0 and never going
+negative; Heat ×0.5 + Speed Boost ×2 stacks to 1175; Flow heat expires on schedule; and a
+non-Speedster paddle ignores heat entirely.
+
+**Clutch** runs through the real `UpdateBall` collision path: a return off the outer 25 % of the
+paddle face (`hitPos < 0.25 || hitPos > 0.75`) `OP_SET`s heat to 1.0 for 0.5 s and arms a 0.5 s
+ball `STAT_TRAIL` — for **both** paddle indexes, each keyed to its own slot — while a centre
+return does nothing, a non-Speedster paddle never clutches, and the SET slot replaces a live Flow
+`OP_ADD` (latest activation authoritative, ruling C3).
 
 ```sh
 gcc tests/test_speedster.c \
