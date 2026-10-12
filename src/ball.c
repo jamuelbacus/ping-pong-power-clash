@@ -41,7 +41,9 @@ void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY
         .sizeMultiplier = 1.0f,
         .unpredictableBounce = false,
         .lagTimer = 0.0f,
-        .randomEffects = false
+        .randomEffects = false,
+        .lastHitQuality = HIT_QUALITY_WEAK,
+        .lastHitter = -1
     };
 
     /* The afterimage ring starts empty (no live ghosts) on every (re)init. */
@@ -151,6 +153,8 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
                 .timeLeft=OVERDRIVE_CLUTCH_TRAIL, .duration=OVERDRIVE_CLUTCH_TRAIL,
                 .color=characters[SPEEDSTER].accent, .source=paddleIdx });
         }
+        /* record hitter */
+        ball->lastHitter = paddleIdx;
     }
     if(CheckCollisionCircleRec(ball->position, ball->radius, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
         float hitPos = (ball->position.y - paddle2->position.y) / paddle2->size.y;
@@ -176,6 +180,19 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
             ball->speedFactor *= 1.005f;
             if (ball->speedFactor > 2.0f) ball->speedFactor = 2.0f;
         }
+        {
+            float hitPosClass = hitPos;
+            if (hitPosClass < 0.0f) hitPosClass = 0.0f;
+            if (hitPosClass > 1.0f) hitPosClass = 1.0f;
+            float dist = fabsf(hitPosClass - 0.5f);
+            if (dist < 0.12f) {
+                ball->lastHitQuality = HIT_QUALITY_PERFECT;
+            } else if (dist < 0.25f) {
+                ball->lastHitQuality = HIT_QUALITY_GOOD;
+            } else {
+                ball->lastHitQuality = HIT_QUALITY_WEAK;
+            }
+        }
         // Push the ball clear of the paddle on the outward face (the side is
         // derived from the paddle's screen half) so one contact produces exactly
         // one bounce and one speedFactor step.
@@ -197,6 +214,7 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
                 .timeLeft=OVERDRIVE_CLUTCH_TRAIL, .duration=OVERDRIVE_CLUTCH_TRAIL,
                 .color=characters[SPEEDSTER].accent, .source=paddleIdx });
         }
+        ball->lastHitter = paddleIdx;
     }
 
     // Reflect any base-velocity mutation back into the effective velocity so

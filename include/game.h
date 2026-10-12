@@ -28,6 +28,9 @@ typedef struct Game {
     CharacterType selectedChar[2];
     Assets assets;
     Effects effects;
+    int playerStreak[2];
+    bool streakEffectsActive[2];
+    int lastHitterProcessed;
 } Game;
 
 

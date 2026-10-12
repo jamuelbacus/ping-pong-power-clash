@@ -24,6 +24,12 @@ static const Vector2 BALL_POSITION = {480, 270};
 typedef struct Paddle Paddle; // forward declaration
 
 // Ball structure
+typedef enum {
+    HIT_QUALITY_WEAK = 0,
+    HIT_QUALITY_GOOD = 1,
+    HIT_QUALITY_PERFECT = 2
+} HitQuality;
+
 typedef struct Ball {
     Vector2 position;
     Vector2 velocity;      // effective velocity used by physics (derived from baseVelocity)
@@ -43,6 +49,8 @@ typedef struct Ball {
     TrailHistory trail;
     // Speedster "Shadow Clone" ultimate: a burst of visual-only decoy balls
     DecoySwarm decoys;
+    HitQuality lastHitQuality;
+    int lastHitter; // -1 if none, 0 for player 1, 1 for player 2
 } Ball;
 
 void InitBall(Ball* ball, float x, float y, float radius, float velX, float velY, Color color);

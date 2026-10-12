@@ -92,6 +92,11 @@ void InitGame(Game* game) {
     game->selectedChar[0] = SPEEDSTER;
     game->selectedChar[1] = SPEEDSTER;
     EffectsInit(&game->effects);
+    game->playerStreak[0] = 0;
+    game->playerStreak[1] = 0;
+    game->streakEffectsActive[0] = false;
+    game->streakEffectsActive[1] = false;
+    game->lastHitterProcessed = -1;
 }
 
 int GameWinner(const Game* game) {
@@ -135,6 +140,13 @@ static void resetBall(Game* game) {
     TrailHistoryInit(&game->player2Paddle.trail);
     /* ...and no Shadow Clone decoy survives a point either. */
     DecoySwarmInit(&game->ball.decoys);
+    game->playerStreak[0] = 0;
+    game->playerStreak[1] = 0;
+    game->streakEffectsActive[0] = false;
+    game->streakEffectsActive[1] = false;
+    game->lastHitterProcessed = -1;
+    game->ball.lastHitQuality = HIT_QUALITY_WEAK;
+    game->ball.lastHitter = -1;
 }
 
 /* ---------------------------------------------------------------- gameplay */
@@ -151,6 +163,18 @@ static void updateGamePlay(Game* game, float deltaTime) {
     }
 
     UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
+    /* Update streaks on paddle hits: GOOD/PERFECT increment streak for hitting player */
+    if (game->ball.lastHitter >= 0 && game->ball.lastHitter != game->lastHitterProcessed) {
+        int hitter = game->ball.lastHitter;
+        HitQuality q = game->ball.lastHitQuality;
+        if (q == HIT_QUALITY_GOOD || q == HIT_QUALITY_PERFECT) {
+            game->playerStreak[hitter]++;
+        } else { /* WEAK: does not increment streak per brief; brief states weak gives smaller effect */
+            /* do not break streak here; reset on score instead */
+            game->playerStreak[hitter] = game->playerStreak[hitter]; /* no-op, but keep logic explicit */
+        }
+        game->lastHitterProcessed = game->ball.lastHitter;
+    }
 
     /* Shadow Clone decoys ride the ball: purely cosmetic, advanced here so
      * they freeze with the rest of the sim at GAME_OVER. */
