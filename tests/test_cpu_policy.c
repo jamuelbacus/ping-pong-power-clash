@@ -10,7 +10,7 @@ static int fails = 0;
 int main(void) {
     Effects fx; EffectsInit(&fx);
     Ball b; InitBall(&b, 800, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    Paddle cpu; InitPaddle(&cpu, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,GRAND_WIZARD);
+    Paddle cpu; InitPaddle(&cpu, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,GRAND_WIZARD);
 
     /* A single 1/60 tick must not fire everything at once: each activation
      * commits exactly one cooldown, so at most one cooldown may be armed.

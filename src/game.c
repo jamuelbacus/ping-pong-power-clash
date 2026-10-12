@@ -83,8 +83,8 @@ void InitGame(Game* game) {
     InitCharacters();
     LoadAssets(&game->assets);
     InitBall(&game->ball, BALL_POSITION.x, BALL_POSITION.y, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    InitPaddle(&game->paddle, PLAYER1_PADDLE_POSITION.x, PLAYER1_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000.0f, 500.0f, 0.9f, KEY_W, KEY_S, SPEEDSTER);
-    InitPaddle(&game->player2Paddle, PLAYER2_PADDLE_POSITION.x, PLAYER2_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, false, 4000.0f, 500.0f, 0.9f, KEY_UP, KEY_DOWN, SPEEDSTER);
+    InitPaddle(&game->paddle, PLAYER1_PADDLE_POSITION.x, PLAYER1_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000.0f, 320.0f, 0.9f, KEY_W, KEY_S, SPEEDSTER);
+    InitPaddle(&game->player2Paddle, PLAYER2_PADDLE_POSITION.x, PLAYER2_PADDLE_POSITION.y, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, false, 4000.0f, 320.0f, 0.9f, KEY_UP, KEY_DOWN, SPEEDSTER);
     game->playerScore = 0;
     game->player2Score = 0;
     game->gameState = MENU;

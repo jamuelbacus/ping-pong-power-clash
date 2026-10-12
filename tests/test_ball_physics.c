@@ -10,8 +10,8 @@ static int fails = 0;
 int main(void) {
     Game g;
     InitBall(&g.ball, 480, 5, BALL_SIZE, 0, -400, BALL_COLOR);         /* heading into the top wall */
-    InitPaddle(&g.paddle, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
-    InitPaddle(&g.player2Paddle, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+    InitPaddle(&g.paddle, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
+    InitPaddle(&g.player2Paddle, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
     EffectsInit(&g.effects);
     g.playerScore = g.player2Score = 0;
 
@@ -58,8 +58,8 @@ int main(void) {
     Ball sep;
     InitBall(&sep, 75.0f, 250.0f, BALL_SIZE, -300.0f, 0.0f, BALL_COLOR);
     Paddle lp, rp;
-    InitPaddle(&lp, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
-    InitPaddle(&rp, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+    InitPaddle(&lp, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
+    InitPaddle(&rp, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
     EffectsInit(&g.effects);
     float f0 = sep.speedFactor;
     UpdateBall(&sep, &g.effects, 0.0f, 960, 540, &lp, &rp);

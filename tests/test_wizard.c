@@ -41,7 +41,7 @@ int main(void) {
     InitCharacters();
     Effects fx; EffectsInit(&fx);
     Ball b; InitBall(&b, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+    Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
 
     AbilitiesActivate(&fx, &b, &pad, 0, GRAND_WIZARD, 1);   /* Time Slow */
     CHECK(EffectsApply(&fx, TARGET_BALL, -1, STAT_BALL_SPEED, 300.0f) == 150.0f, "time slow halves speed");
@@ -65,8 +65,8 @@ int main(void) {
      * to 0 once the effect expires. */
     Effects cfx; EffectsInit(&cfx);
     Ball cb; InitBall(&cb, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    Paddle p1; InitPaddle(&p1, 50, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
-    Paddle p2; InitPaddle(&p2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,500,0.9f,KEY_UP,KEY_DOWN,GRAND_WIZARD);
+    Paddle p1; InitPaddle(&p1, 50, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+    Paddle p2; InitPaddle(&p2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,GRAND_WIZARD);
     AbilitiesActivate(&cfx, &cb, &p1, 0, GRAND_WIZARD, 0);   /* Curve Spell */
     float startX = cb.baseVelocity.x;
     float startY = cb.baseVelocity.y;

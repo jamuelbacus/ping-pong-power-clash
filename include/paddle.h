@@ -15,7 +15,7 @@ static const Vector2 PLAYER1_PADDLE_POSITION = {50, 200};
 static const Vector2 PLAYER2_PADDLE_POSITION = {890, 200};
 
 static const float PADDLE_WIDTH = 20;
-static const float PADDLE_HEIGHT = 100;
+static const float PADDLE_HEIGHT = 76;
 
 typedef struct Ball Ball;  // Forward declaration
 

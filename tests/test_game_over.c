@@ -7,8 +7,8 @@ static int fails = 0;
 int main(void) {
     Game g;
     InitBall(&g.ball, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    InitPaddle(&g.paddle, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
-    InitPaddle(&g.player2Paddle, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, false, 4000,500,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
+    InitPaddle(&g.paddle, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
+    InitPaddle(&g.player2Paddle, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, false, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
     EffectsInit(&g.effects);
     g.playerScore = g.player2Score = 0;
     g.gameState = PLAY_CPU;

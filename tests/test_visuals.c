@@ -32,7 +32,7 @@ int main(void) {
 
     Effects fx; EffectsInit(&fx);
     Ball b; InitBall(&b, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
-    Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
+    Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
 
     /* Empty registry: no ball tint and no player has an active effect. */
     CHECK(EffectTintColor(&fx, TARGET_BALL, -1).a == 0, "empty registry ball tint is BLANK");
@@ -66,7 +66,7 @@ int main(void) {
 
     /* Speedster Afterburner arms a timed charge window on the paddle. */
     Effects fx4b; EffectsInit(&fx4b);
-    Paddle apad; InitPaddle(&apad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,500,0.9f,KEY_W,KEY_S,SPEEDSTER);
+    Paddle apad; InitPaddle(&apad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
     AbilitiesActivate(&fx4b, &b, &apad, 0, SPEEDSTER, 1);
     CHECK(AfterburnerArmed(&apad), "afterburner window armed");
     apad.afterburnerTimer = 1.0f;

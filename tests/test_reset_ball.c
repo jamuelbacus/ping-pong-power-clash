@@ -28,10 +28,10 @@ int main(void) {
 
     /* CPU-controlled paddles so the test never touches real input devices. */
     InitPaddle(&game.paddle, PLAYER1_PADDLE_POSITION.x, PLAYER1_PADDLE_POSITION.y,
-               PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000.0f, 500.0f, 0.9f,
+               PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, true, 4000.0f, 320.0f, 0.9f,
                KEY_W, KEY_S, SPEEDSTER);
     InitPaddle(&game.player2Paddle, PLAYER2_PADDLE_POSITION.x, PLAYER2_PADDLE_POSITION.y,
-               PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000.0f, 500.0f, 0.9f,
+               PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000.0f, 320.0f, 0.9f,
                KEY_UP, KEY_DOWN, SPEEDSTER);
 
     game.playerScore = 0;
