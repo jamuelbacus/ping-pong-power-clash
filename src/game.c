@@ -169,11 +169,35 @@ static void updateGamePlay(Game* game, float deltaTime) {
         HitQuality q = game->ball.lastHitQuality;
         if (q == HIT_QUALITY_GOOD || q == HIT_QUALITY_PERFECT) {
             game->playerStreak[hitter]++;
-        } else { /* WEAK: does not increment streak per brief; brief states weak gives smaller effect */
-            /* do not break streak here; reset on score instead */
-            game->playerStreak[hitter] = game->playerStreak[hitter]; /* no-op, but keep logic explicit */
         }
         game->lastHitterProcessed = game->ball.lastHitter;
+    }
+    /* Apply streak effects on thresholds: 3 hits -> trail, 5 -> faster */
+    for (int p = 0; p < 2; p++) {
+        int s = game->playerStreak[p];
+        if (s == 3) {
+            /* Enable trail when reaching threshold 3 */
+            EffectsPush(&game->effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+                .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
+                .timeLeft=1.8f, .duration=1.8f,
+                .color=characters[game->selectedChar[p]].accent, .source=100 + p });
+            game->streakEffectsActive[p] = true;
+        } else if (s == 5) {
+            /* Enable trail + speed boost when reaching threshold 5 */
+            EffectsPush(&game->effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+                .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
+                .timeLeft=2.5f, .duration=2.5f,
+                .color=characters[game->selectedChar[p]].accent, .source=100 + p });
+            /* Modest speed boost (+10-15% in controlled way) */
+            game->ball.speedFactor *= 1.12f;
+            if (game->ball.speedFactor > 2.5f) game->ball.speedFactor = 2.5f;
+            game->streakEffectsActive[p] = true;
+        } else if (s > 5) {
+            /* Maintain/refresh effects if still high streak? Or just keep active state */
+            game->streakEffectsActive[p] = true;
+        } else {
+            game->streakEffectsActive[p] = false;
+        }
     }
 
     /* Shadow Clone decoys ride the ball: purely cosmetic, advanced here so
