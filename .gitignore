@@ -9,3 +9,6 @@ private/
 
 # Test binaries
 /tests/test_reset_ball
+
+# Brainstorming companion artifacts
+.superpowers/
