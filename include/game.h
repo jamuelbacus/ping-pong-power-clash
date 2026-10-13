@@ -31,6 +31,7 @@ typedef struct Game {
     int playerStreak[2];
     bool streakEffectsActive[2];
     int lastHitterProcessed;
+    int lastStreakApplied[2];
 } Game;
 
 

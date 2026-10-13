@@ -97,6 +97,8 @@ void InitGame(Game* game) {
     game->streakEffectsActive[0] = false;
     game->streakEffectsActive[1] = false;
     game->lastHitterProcessed = -1;
+    game->lastStreakApplied[0] = -1;
+    game->lastStreakApplied[1] = -1;
 }
 
 int GameWinner(const Game* game) {
@@ -144,7 +146,10 @@ static void resetBall(Game* game) {
     game->playerStreak[1] = 0;
     game->streakEffectsActive[0] = false;
     game->streakEffectsActive[1] = false;
+    game->lastStreakApplied[0] = -1;
+    game->lastStreakApplied[1] = -1;
     game->lastHitterProcessed = -1;
+    game->ball.speedFactor = 1.0f;
     game->ball.lastHitQuality = HIT_QUALITY_WEAK;
     game->ball.lastHitter = -1;
 }
@@ -172,31 +177,37 @@ static void updateGamePlay(Game* game, float deltaTime) {
         }
         game->lastHitterProcessed = game->ball.lastHitter;
     }
-    /* Apply streak effects on thresholds: 3 hits -> trail, 5 -> faster */
+    /* Apply streak effects on thresholds: 3 hits -> trail, 5 -> faster (one-shot) */
     for (int p = 0; p < 2; p++) {
         int s = game->playerStreak[p];
-        if (s == 3) {
-            /* Enable trail when reaching threshold 3 */
-            EffectsPush(&game->effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
-                .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
-                .timeLeft=1.8f, .duration=1.8f,
-                .color=characters[game->selectedChar[p]].accent, .source=100 + p });
+        if (s >= 5) {
+            if (game->lastStreakApplied[p] < 5) {
+                EffectsPush(&game->effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+                    .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
+                    .timeLeft=2.5f, .duration=2.5f,
+                    .color=characters[game->selectedChar[p]].accent, .source=100 + p });
+                game->ball.speedFactor *= 1.12f;
+                if (game->ball.speedFactor > 2.5f) game->ball.speedFactor = 2.5f;
+                game->lastStreakApplied[p] = 5;
+            }
             game->streakEffectsActive[p] = true;
-        } else if (s == 5) {
-            /* Enable trail + speed boost when reaching threshold 5 */
-            EffectsPush(&game->effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
-                .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
-                .timeLeft=2.5f, .duration=2.5f,
-                .color=characters[game->selectedChar[p]].accent, .source=100 + p });
-            /* Modest speed boost (+10-15% in controlled way) */
-            game->ball.speedFactor *= 1.12f;
-            if (game->ball.speedFactor > 2.5f) game->ball.speedFactor = 2.5f;
+        } else if (s == 3) {
+            if (game->lastStreakApplied[p] < 3) {
+                EffectsPush(&game->effects, (Effect){ .active=true, .target=TARGET_BALL, .paddleIndex=-1,
+                    .stat=STAT_TRAIL, .op=OP_SET, .value=1.0f,
+                    .timeLeft=1.8f, .duration=1.8f,
+                    .color=characters[game->selectedChar[p]].accent, .source=100 + p });
+                game->lastStreakApplied[p] = 3;
+            }
             game->streakEffectsActive[p] = true;
-        } else if (s > 5) {
-            /* Maintain/refresh effects if still high streak? Or just keep active state */
-            game->streakEffectsActive[p] = true;
+        } else if (s == 0) {
+            game->streakEffectsActive[p] = false;
+            game->lastStreakApplied[p] = -1;
         } else {
             game->streakEffectsActive[p] = false;
+            if (game->lastStreakApplied[p] > s) {
+                game->lastStreakApplied[p] = -1;
+            }
         }
     }
 
