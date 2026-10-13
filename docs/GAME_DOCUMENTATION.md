@@ -9,17 +9,17 @@
 | Platform | Desktop (cross-platform via raylib; a Windows build is committed, Linux builds from source) |
 | Language | C (C17) |
 | Framework | raylib 5.5 |
-| Window | First opens at 1280 × 720, **resizable** (minimum 960 × 540), `F11` toggles fullscreen; the game renders to a fixed 960 × 540 virtual canvas that is letterboxed/scaled to the window (`FLAG_WINDOW_RESIZABLE`, `viewport.c`) |
+| Window | First opens at 1280 × 720, **resizable** (minimum 960 × 540), `F11` toggles fullscreen; the game renders to a fixed 1024 × 576 virtual canvas that is letterboxed/scaled to the window (`FLAG_WINDOW_RESIZABLE`, `viewport.c`) |
 | Players | 1 (vs CPU) or 2 (local PvP) |
-| Win condition | First to **5** points (`WINNING_SCORE`) |
-| Current state | Playable prototype — three characters fully implemented (Speedster, Grand Wizard, Defender); the rest are roster placeholders |
+| Win condition | First to **7** points (`WINNING_SCORE`) |
+| Current state | Playable prototype — all gameplay systems implemented (characters with abilities, power-ups, hazards toggle, hit quality/streaks); three characters fully implemented (Speedster, Grand Wizard, Defender); the rest are roster placeholders |
 
 ### Concept
 
 Ping Pong: Power Clash takes classic Pong and layers a roster of 8 characters on top. Each
 character has a distinct theme, playstyle, a skill 1, a skill 2, and an ultimate ability. The
 character you pick changes how you bend the ball, move your paddle, or disrupt your opponent.
-Matches are first-to-5, single arena, no power-ups on the field.
+Matches are first-to-7, single arena, with power-ups and a hazards toggle.
 
 ---
 
@@ -95,7 +95,7 @@ Matches are first-to-5, single arena, no power-ups on the field.
 ### Scoring & winning
 
 - Ball off the **right** edge → player 1 scores; off the **left** edge → player 2 (or CPU) scores.
-- First to **5** (`WINNING_SCORE`) wins. The frame after the winning point the match freezes:
+- First to **7** (`WINNING_SCORE`) wins. The frame after the winning point the match freezes:
   the win check at the top of `updateGamePlay` flips `gameState` to `GAME_OVER` and returns
   before physics. On the scoring frame itself the match is still live — `UpdatePaddle` ×2 and
   `CpuTickAbilities` run once after `resetBall`, so the CPU can fire one final ability whose
@@ -268,13 +268,13 @@ GAME_OVER ──R (ResetGame)──▶ MENU
 ```c
 SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 InitWindow(1280, 720, WINDOW_TITLE);
-SetWindowMinSize(WINDOW_WIDTH, WINDOW_HEIGHT);   // 960 x 540
+SetWindowMinSize(WINDOW_WIDTH, WINDOW_HEIGHT);   // 1024 x 576
 SetTargetFPS(60);
 while (!WindowShouldClose()) {
     if (IsKeyPressed(KEY_F11)) ToggleFullscreen();
     float dt = GetFrameTime();
     UpdateGame(&game, dt);
-    BeginViewport(&viewport);          // 960 x 540 render target
+    BeginViewport(&viewport);          // 1024 x 576 render target
     ClearBackground(THEME_BG);
     DrawGame(&game);
     EndViewport(&viewport);            // letterboxed presentation + mouse mapping
@@ -416,8 +416,8 @@ gcc src/*.c -Iinclude $(pkg-config --cflags --libs raylib) -lm -o game
 ./game
 ```
 
-`main.c` opens a **resizable** window (min 960 × 540), targets 60 FPS, toggles fullscreen on
-`F11`, and presents the 960 × 540 virtual canvas letterboxed.
+`main.c` opens a **resizable** window (min 1024 × 576), targets 60 FPS, toggles fullscreen on
+`F11`, and presents the 1024 × 576 virtual canvas letterboxed.
 
 ### Headless tests
 

@@ -12,7 +12,7 @@
 
 static const int WINDOW_WIDTH = 1024;
 static const int WINDOW_HEIGHT = 576;
-static const char* WINDOW_TITLE = "Ping Pong: Power Clash";
+#define WINDOW_TITLE "Ping Pong: Power Clash"
 
 static const int WINNING_SCORE = 7;
 

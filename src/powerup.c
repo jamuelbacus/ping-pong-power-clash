@@ -31,9 +31,10 @@ void PowerupPoolClear(PowerupPool* pool) {
 }
 
 static void ApplyEffectToCollector(Powerup* p, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx, int collectorIndex) {
+    (void)ball;
+    (void)paddle1;
+    (void)paddle2;
     if (collectorIndex < 0 || collectorIndex > 1) return;
-    Paddle* collector = (collectorIndex == 0) ? paddle1 : paddle2;
-    Paddle* opponent = (collectorIndex == 0) ? paddle2 : paddle1;
     int src = collectorIndex;
 
     switch (p->type) {
