@@ -26,8 +26,10 @@
         Viewport viewport;
         InitViewport(&viewport, WINDOW_WIDTH, WINDOW_HEIGHT);
 
+        PlayBgm(&game.sfx);
         while (!WindowShouldClose())
         {
+            UpdateMusicStream(game.sfx.bgm);
             if (IsKeyPressed(KEY_F11)) ToggleFullscreen();
 
             float deltaTime = GetFrameTime();

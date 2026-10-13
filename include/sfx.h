@@ -12,6 +12,9 @@ typedef struct {
     Sound streak3;
     Sound streak5;
     Sound score;
+    Sound skillCast;
+    Sound skillReady;
+    Music bgm;
     bool initialized;
 } Sfx;
 
@@ -25,3 +28,8 @@ void PlayStreak5(Sfx* sfx);
 void PlayScore(Sfx* sfx);
 
 #endif /* SFX_H */
+
+void PlaySkillCast(Sfx* sfx);
+void PlaySkillReady(Sfx* sfx);
+void PlayBgm(Sfx* sfx);
+void StopBgm(Sfx* sfx);
