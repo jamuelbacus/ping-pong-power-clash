@@ -108,8 +108,10 @@ void PlayBgm(Sfx *sfx)
 {
     if (sfx == NULL || !sfx->initialized)
         return;
-    if (!IsMusicStreamPlaying(sfx->bgm))
+    if (!IsMusicStreamPlaying(sfx->bgm)) {
+        SetMusicVolume(sfx->bgm, 0.4f);
         PlayMusicStream(sfx->bgm);
+    }
 }
 
 void StopBgm(Sfx *sfx)
