@@ -101,6 +101,13 @@ void InitGame(Game* game) {
     game->lastHitterProcessed = -1;
     game->lastStreakApplied[0] = -1;
     game->lastStreakApplied[1] = -1;
+    game->hazardsEnabled = false;
+    game->hazardW = 8.0f;
+    game->hazardH = 80.0f;
+    game->hazardX = WINDOW_WIDTH / 2.0f - game->hazardW / 2.0f;
+    game->hazardY = WINDOW_HEIGHT / 2.0f - game->hazardH / 2.0f;
+    game->hazardVelY = 120.0f;
+    game->hazardActive = false;
 }
 
 int GameWinner(const Game* game) {
@@ -171,6 +178,34 @@ static void updateGamePlay(Game* game, float deltaTime) {
     }
 
     UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
+
+    if (game->hazardsEnabled) {
+        game->hazardActive = true;
+        game->hazardY += game->hazardVelY * deltaTime;
+        if (game->hazardY <= 0.0f) {
+            game->hazardY = 0.0f;
+            game->hazardVelY *= -1.0f;
+        } else if (game->hazardY + game->hazardH >= WINDOW_HEIGHT) {
+            game->hazardY = WINDOW_HEIGHT - game->hazardH;
+            game->hazardVelY *= -1.0f;
+        }
+        Rectangle hazardRect = (Rectangle){ game->hazardX, game->hazardY, game->hazardW, game->hazardH };
+        if (CheckCollisionCircleRec(game->ball.position, game->ball.radius * game->ball.sizeMultiplier, hazardRect)) {
+            if (game->ball.velocity.x > 0) {
+                game->ball.baseVelocity.x *= -1.0f;
+            } else if (game->ball.velocity.x < 0) {
+                game->ball.baseVelocity.x *= -1.0f;
+            }
+            if (game->ball.position.x < game->hazardX + game->hazardW / 2.0f) {
+                game->ball.position.x = game->hazardX - game->ball.radius * game->ball.sizeMultiplier - 0.5f;
+            } else {
+                game->ball.position.x = game->hazardX + game->hazardW + game->ball.radius * game->ball.sizeMultiplier + 0.5f;
+            }
+        }
+    } else {
+        game->hazardActive = false;
+    }
+
     /* Update powerups */
     PowerupPoolUpdate(&game->powerups, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->ball, &game->paddle, &game->player2Paddle, &game->effects);
     /* Update streaks on paddle hits: GOOD/PERFECT increment streak for hitting player */
@@ -373,6 +408,13 @@ static void DrawGameplay(const Game* game) {
 
     DrawScoreline(game);          /* HUD first: everything below draws over it */
 
+    if (game->hazardsEnabled && game->hazardActive) {
+        DrawGlowRect((Rectangle){ game->hazardX, game->hazardY, game->hazardW, game->hazardH },
+                     (Color){200, 50, 50, 200}, 6.0f);
+        DrawGlowRectLines((Rectangle){ game->hazardX, game->hazardY, game->hazardW, game->hazardH },
+                         2.0f, (Color){255, 100, 100, 255}, 8.0f);
+    }
+
     DrawBall(&game->ball);
     DrawDecoys(&game->ball);
     DrawPaddle(game->paddle);
@@ -469,4 +511,7 @@ void ResetGame(Game* game) {
     EffectsClear(&game->effects);
     game->gameState = MENU;
     game->currentSelectingPlayer = 0;
+    game->hazardY = WINDOW_HEIGHT / 2.0f - game->hazardH / 2.0f;
+    game->hazardVelY = (game->hazardVelY >= 0) ? 120.0f : -120.0f;
+    game->hazardActive = false;
 }

@@ -34,6 +34,13 @@ typedef struct Game {
     bool streakEffectsActive[2];
     int lastHitterProcessed;
     int lastStreakApplied[2];
+    bool hazardsEnabled;
+    float hazardX;
+    float hazardY;
+    float hazardW;
+    float hazardH;
+    float hazardVelY;
+    bool hazardActive;
 } Game;
 
 

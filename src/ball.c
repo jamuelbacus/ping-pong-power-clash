@@ -11,6 +11,7 @@
 #include "abilities.h"
 #include "trail.h"
 #include "overdrive.h"
+#include "game.h"
 
 #include <math.h>
 
