@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "effects.h"
 #include "powerup.h"
+#include "sfx.h"
 
 static const int WINDOW_WIDTH = 1024;
 static const int WINDOW_HEIGHT = 576;
@@ -28,6 +29,7 @@ typedef struct Game {
     int currentSelectingPlayer;
     CharacterType selectedChar[2];
     Assets assets;
+    Sfx sfx;
     Effects effects;
     PowerupPool powerups;
     int playerStreak[2];

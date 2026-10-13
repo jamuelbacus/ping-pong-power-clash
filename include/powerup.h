@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include "raylib.h"
 #include "effects.h"
+#include "sfx.h"
 
 typedef struct Ball Ball;
 typedef struct Paddle Paddle;
@@ -43,10 +44,11 @@ typedef struct Powerup {
 typedef struct PowerupPool {
     Powerup items[POWERUP_POOL_SIZE];
     float spawnTimer;
+    Sfx* sfx;
 } PowerupPool;
 
 void PowerupPoolInit(PowerupPool* pool);
-void PowerupPoolUpdate(PowerupPool* pool, float deltaTime, int screenWidth, int screenHeight, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx);
+void PowerupPoolUpdate(PowerupPool* pool, float deltaTime, int screenWidth, int screenHeight, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx, Sfx* sfx);
 void PowerupPoolSpawn(PowerupPool* pool, PowerupType type, Vector2 pos);
 void PowerupPoolClear(PowerupPool* pool);
 void PowerupPoolDraw(const PowerupPool* pool);

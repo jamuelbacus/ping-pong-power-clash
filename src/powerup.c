@@ -1,4 +1,5 @@
 /*
+#include <stddef.h>
  * powerup.c
  * Powerup system implementation with fixed pool (no dynamic allocation).
  */
@@ -24,13 +25,14 @@ void PowerupPoolInit(PowerupPool* pool) {
         pool->items[i].active = false;
     }
     pool->spawnTimer = POWERUP_SPAWN_INTERVAL;
+    pool->sfx = 0;
 }
 
 void PowerupPoolClear(PowerupPool* pool) {
     PowerupPoolInit(pool);
 }
 
-static void ApplyEffectToCollector(Powerup* p, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx, int collectorIndex) {
+static void ApplyEffectToCollector(Powerup* p, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx, Sfx* sfx, int collectorIndex) {
     (void)ball;
     (void)paddle1;
     (void)paddle2;
@@ -68,6 +70,7 @@ static void ApplyEffectToCollector(Powerup* p, Ball* ball, Paddle* paddle1, Padd
     p->state = POWERUP_STATE_COLLECTED;
     p->timer = 0.0f;
     p->active = false;
+    if (sfx) PlayPowerupCollect(sfx);
 }
 
 void PowerupPoolSpawn(PowerupPool* pool, PowerupType type, Vector2 pos) {
@@ -98,7 +101,7 @@ void PowerupPoolSpawn(PowerupPool* pool, PowerupType type, Vector2 pos) {
     pool->items[victim].active = true;
 }
 
-void PowerupPoolUpdate(PowerupPool* pool, float deltaTime, int screenWidth, int screenHeight, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx) {
+void PowerupPoolUpdate(PowerupPool* pool, float deltaTime, int screenWidth, int screenHeight, Ball* ball, Paddle* paddle1, Paddle* paddle2, Effects* fx, Sfx* sfx) {
     (void)screenWidth;
     (void)screenHeight;
     for (int i = 0; i < POWERUP_POOL_SIZE; i++) {
@@ -114,22 +117,22 @@ void PowerupPoolUpdate(PowerupPool* pool, float deltaTime, int screenWidth, int 
         float pr = POWERUP_RADIUS;
         // Check collision with paddle 1
         if (CheckCollisionCircleRec(p->position, pr, (Rectangle){paddle1->position.x, paddle1->position.y, paddle1->size.x, paddle1->size.y})) {
-            ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, 0);
+            ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, pool->sfx, 0);
             continue;
         }
         // Check collision with paddle 2
         if (CheckCollisionCircleRec(p->position, pr, (Rectangle){paddle2->position.x, paddle2->position.y, paddle2->size.x, paddle2->size.y})) {
-            ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, 1);
+            ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, pool->sfx, 1);
             continue;
         }
         // Check collision with ball
         if (CheckCollisionCircles(p->position, pr, ball->position, ball->radius * ball->sizeMultiplier)) {
             // Determine collector - last hitter or random-ish; prefer last hitter if set
             if (ball->lastHitter == 0 || ball->lastHitter == 1) {
-                ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, ball->lastHitter);
+                ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, pool->sfx, ball->lastHitter);
             } else {
                 // fallback: side where ball is moving towards
-                ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, ball->velocity.x < 0 ? 0 : 1);
+                ApplyEffectToCollector(p, ball, paddle1, paddle2, fx, pool->sfx, ball->velocity.x < 0 ? 0 : 1);
             }
             continue;
         }
@@ -139,6 +142,7 @@ void PowerupPoolUpdate(PowerupPool* pool, float deltaTime, int screenWidth, int 
     pool->spawnTimer -= deltaTime;
     if (pool->spawnTimer <= 0.0f) {
         pool->spawnTimer = POWERUP_SPAWN_INTERVAL;
+    pool->sfx = 0;
         // Avoid affecting headless tests by only spawning if in play state? But we don't know game state here
         // Spawn at center-ish area
         Vector2 pos = (Vector2){ WINDOW_WIDTH / 2.0f + (GetRandomValue(-60, 60)), WINDOW_HEIGHT / 2.0f + (GetRandomValue(-60, 60)) };
