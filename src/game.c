@@ -6,6 +6,7 @@
 #include "visuals.h"
 #include "trail.h"
 #include "decoy.h"
+#include "powerup.h"
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -92,6 +93,7 @@ void InitGame(Game* game) {
     game->selectedChar[0] = SPEEDSTER;
     game->selectedChar[1] = SPEEDSTER;
     EffectsInit(&game->effects);
+    PowerupPoolInit(&game->powerups);
     game->playerStreak[0] = 0;
     game->playerStreak[1] = 0;
     game->streakEffectsActive[0] = false;
@@ -152,6 +154,7 @@ static void resetBall(Game* game) {
     game->ball.speedFactor = 1.0f;
     game->ball.lastHitQuality = HIT_QUALITY_WEAK;
     game->ball.lastHitter = -1;
+    PowerupPoolClear(&game->powerups);
 }
 
 /* ---------------------------------------------------------------- gameplay */
@@ -168,6 +171,8 @@ static void updateGamePlay(Game* game, float deltaTime) {
     }
 
     UpdateBall(&game->ball, &game->effects, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->paddle, &game->player2Paddle);
+    /* Update powerups */
+    PowerupPoolUpdate(&game->powerups, deltaTime, WINDOW_WIDTH, WINDOW_HEIGHT, &game->ball, &game->paddle, &game->player2Paddle, &game->effects);
     /* Update streaks on paddle hits: GOOD/PERFECT increment streak for hitting player */
     if (game->ball.lastHitter >= 0 && game->ball.lastHitter != game->lastHitterProcessed) {
         int hitter = game->ball.lastHitter;
@@ -373,6 +378,7 @@ static void DrawGameplay(const Game* game) {
     DrawPaddle(game->paddle);
     DrawPaddle(game->player2Paddle);
     DrawEffects(&game->effects, &game->ball, &game->paddle, &game->player2Paddle);
+    PowerupPoolDraw(&game->powerups);
 }
 
 static void DrawGameOver(const Game* game) {
