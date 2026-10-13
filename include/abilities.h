@@ -41,11 +41,11 @@ static const float AFTERBURNER_WINDOW = 2.0f;
 /* ability: 0 = skill1, 1 = skill2, 2 = ultimate. Sets that ability's cooldown
  * and pushes the character's effect(s). `paddleIndex` is the source of the
  * effects; ball-targeted effects inside use paddleIndex -1. */
-void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex, CharacterType type, int ability);
+void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex, CharacterType type, int ability, Sfx* sfx);
 
 /* Decrements cpuPaddle->cpuDecisionTimer; when it reaches <= 0 the timer resets
  * to CPU_DECISION_INTERVAL and at most ONE ready ability may fire, gated on the
  * ball approaching the paddle and a single CPU_DIFFICULTY roll. */
-void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleIndex, float dt);
+void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleIndex, float dt, Sfx* sfx);
 
 #endif // ABILITIES_H

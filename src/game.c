@@ -320,12 +320,12 @@ static void updateGamePlay(Game *game, float deltaTime)
         resetBall(game);
     }
 
-    UpdatePaddle(&game->paddle, &game->effects, 0, deltaTime, WINDOW_HEIGHT, &game->ball);
-    UpdatePaddle(&game->player2Paddle, &game->effects, 1, deltaTime, WINDOW_HEIGHT, &game->ball);
+    UpdatePaddle(&game->paddle, &game->effects, 0, deltaTime, WINDOW_HEIGHT, &game->ball, &game->sfx);
+    UpdatePaddle(&game->player2Paddle, &game->effects, 1, deltaTime, WINDOW_HEIGHT, &game->ball, &game->sfx);
 
     if (game->player2Paddle.isCpu)
     {
-        CpuTickAbilities(&game->effects, &game->ball, &game->player2Paddle, 1, deltaTime);
+        CpuTickAbilities(&game->effects, &game->ball, &game->player2Paddle, 1, deltaTime, &game->sfx);
     }
 }
 

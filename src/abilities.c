@@ -9,10 +9,11 @@
 #include "trail.h"
 #include "decoy.h"
 #include "overdrive.h"
+#include "sfx.h"
 
 #include <math.h>
 
-void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex, CharacterType type, int ability) {
+void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex, CharacterType type, int ability, Sfx* sfx) {
     Color color = characters[type].accent;
     int source = paddleIndex;
 
@@ -124,9 +125,10 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
             break;
         default: break;
     }
+    if (sfx) PlaySkillCast(sfx);
 }
 
-void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleIndex, float dt) {
+void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleIndex, float dt, Sfx* sfx) {
     cpuPaddle->cpuDecisionTimer -= dt;
     if (cpuPaddle->cpuDecisionTimer > 0.0f) return;
 
@@ -151,5 +153,5 @@ void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleInde
     else if (cpuPaddle->skill1Cooldown <= 0.0f) ability = 0;
     if (ability < 0) return;
 
-    AbilitiesActivate(fx, ball, cpuPaddle, paddleIndex, cpuPaddle->charType, ability);
+    AbilitiesActivate(fx, ball, cpuPaddle, paddleIndex, cpuPaddle->charType, ability, sfx);
 }

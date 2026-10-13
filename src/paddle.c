@@ -52,7 +52,7 @@ void InitPaddle(Paddle* paddle, float x, float y, float width, float height, flo
     TrailHistoryInit(&paddle->trail);
 }
 
-void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime, int screenHeight, Ball* ball) {
+void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime, int screenHeight, Ball* ball, Sfx* sfx) {
     if (paddle->isCpu) {
         // CPU controls: instant acceleration to max speed towards ball
         float targetY = ball->position.y;
@@ -131,11 +131,11 @@ void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime,
         int eKey = (paddle->position.x > 480) ? KEY_KP_2 : KEY_E;
         int rKey = (paddle->position.x > 480) ? KEY_KP_3 : KEY_R;
         if (IsKeyPressed(qKey) && paddle->skill1Cooldown <= 0.0f)
-            AbilitiesActivate(fx, ball, paddle, paddleIndex, paddle->charType, 0);
+            AbilitiesActivate(fx, ball, paddle, paddleIndex, paddle->charType, 0, sfx);
         if (IsKeyPressed(eKey) && paddle->skill2Cooldown <= 0.0f)
-            AbilitiesActivate(fx, ball, paddle, paddleIndex, paddle->charType, 1);
+            AbilitiesActivate(fx, ball, paddle, paddleIndex, paddle->charType, 1, sfx);
         if (IsKeyPressed(rKey) && paddle->ultimateCooldown <= 0.0f)
-            AbilitiesActivate(fx, ball, paddle, paddleIndex, paddle->charType, 2);
+            AbilitiesActivate(fx, ball, paddle, paddleIndex, paddle->charType, 2, sfx);
     }
 
     // Update position

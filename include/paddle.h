@@ -9,6 +9,7 @@
 #include "raylib.h"
 #include "character.h"
 #include "effects.h"
+#include "sfx.h"
 #include "trail.h"
 
 static const Vector2 PLAYER1_PADDLE_POSITION = {50, 200};
@@ -61,7 +62,7 @@ typedef struct Paddle {
 } Paddle;
 
 void InitPaddle(Paddle* paddle, float x, float y, float width, float height, float speed, Color color, bool isCpu, float accel, float maxSpeed, float friction, int upKey, int downKey, CharacterType charType);
-void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime, int screenHeight, Ball* ball);
+void UpdatePaddle(Paddle* paddle, Effects* fx, int paddleIndex, float deltaTime, int screenHeight, Ball* ball, Sfx* sfx);
 void DrawPaddle(Paddle paddle);
 
 #endif // PADDLE_H
