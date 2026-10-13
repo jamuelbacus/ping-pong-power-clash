@@ -16,8 +16,9 @@ technical health of the codebase, and how the effects/abilities architecture wor
   compiler; the raylib **headers** (`include/`) are platform-independent.
 - `.gitignore` now ignores the local Linux `game` binary, `*.o`/`*.obj`, and test binaries;
   `game.exe` and the Windows libs are intentionally tracked.
-- The game is a **playable prototype**: match loop, first-to-5 scoring, game-over/rematch, and
-  three fully implemented characters (Speedster, Grand Wizard, Defender) driven by a timed
+- The game is a **playable prototype**: match loop, first-to-7 scoring, game-over/rematch, with
+  powerups and a hazards toggle (off by default). Hit quality and streak effects are tracked. 
+  Three fully implemented characters (Speedster, Grand Wizard, Defender) driven by a timed
   effects registry. Speedster additionally carries the **Overdrive** heat passive (Rally Heat /
   Flow / Clutch → paddle max speed), and every trail — ball and dash — is a true position-history
   afterimage from the fixed-capacity ring in `src/trail.c`. Gameplay draw order: centre line →
@@ -363,4 +364,4 @@ Return and Overdrive and left the kit with no offense.
    tuning fields, and any balance feedback from testing. The tuned gameplay values are now
    `PADDLE_HEIGHT 76`, paddle `maxSpeed 320`, `BALL_BASE_VELOCITY_(X,Y)` (400,267),
    `BALL_SPEED_BASE ~480.93` with the HUD using `SkillRecoverFraction` and inverted draw order
-   (HUD first, ball above).
+   (HUD first, ball above). The canvas is **1024 × 576**, match win is **first to 7** (`WINNING_SCORE`), window title is **"Ping Pong: Power Clash"** (`WINDOW_TITLE`). Fixed-pool **powerups** (Speed Boost, Enlarge Paddle, Shrink Opponent, Heat Pulse) spawn periodically, are collected on collision, and cleared on reset. **Hazards** toggle (off by default) controls a moving central obstacle. **Hit quality** (Perfect/Good/Weak) on paddle contact drives per-player **streaks** with streak effects at thresholds.
