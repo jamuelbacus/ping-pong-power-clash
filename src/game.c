@@ -1,3 +1,4 @@
+#include <math.h>
 #include "game.h"
 #include "theme.h"
 #include "layout.h"
@@ -119,6 +120,14 @@ void InitGame(Game *game)
     game->hazardY = WINDOW_HEIGHT / 2.0f - game->hazardH / 2.0f;
     game->hazardVelY = 120.0f;
     game->hazardActive = false;
+    game->shakeTime = 0.0f;
+    game->shakeDuration = 0.0f;
+    game->shakeMagnitude = 0.0f;
+    game->hitFlashTimer = 0.0f;
+    game->hitFlashPos = (Vector2){0.0f, 0.0f};
+    game->hitFlashColor = WHITE;
+    game->paddleFlash[0] = 0.0f;
+    game->paddleFlash[1] = 0.0f;
 }
 
 int GameWinner(const Game *game)
@@ -177,12 +186,37 @@ static void resetBall(Game *game)
     game->ball.lastHitQuality = HIT_QUALITY_WEAK;
     game->ball.lastHitter = -1;
     PowerupPoolClear(&game->powerups);
+    /* A point boundary is a hard stop for juice, too. */
+    game->shakeTime = 0.0f;
+    game->shakeDuration = 0.0f;
+    game->shakeMagnitude = 0.0f;
+    game->hitFlashTimer = 0.0f;
+    game->paddleFlash[0] = 0.0f;
+    game->paddleFlash[1] = 0.0f;
 }
 
 /* ---------------------------------------------------------------- gameplay */
 
 static void updateGamePlay(Game *game, float deltaTime)
 {
+    /* Decay juice timers first (in play or not), so they never get stuck. */
+    if (game->shakeTime > 0.0f) {
+        game->shakeTime -= deltaTime;
+        if (game->shakeTime < 0.0f) game->shakeTime = 0.0f;
+    }
+    if (game->hitFlashTimer > 0.0f) {
+        game->hitFlashTimer -= deltaTime;
+        if (game->hitFlashTimer < 0.0f) game->hitFlashTimer = 0.0f;
+    }
+    if (game->paddleFlash[0] > 0.0f) {
+        game->paddleFlash[0] -= deltaTime;
+        if (game->paddleFlash[0] < 0.0f) game->paddleFlash[0] = 0.0f;
+    }
+    if (game->paddleFlash[1] > 0.0f) {
+        game->paddleFlash[1] -= deltaTime;
+        if (game->paddleFlash[1] < 0.0f) game->paddleFlash[1] = 0.0f;
+    }
+
     /* Expire timed effects before physics so effects that end this frame are
      * gone before UpdateBall/UpdatePaddle query them. */
     EffectsUpdate(&game->effects, deltaTime);
@@ -249,10 +283,26 @@ static void updateGamePlay(Game *game, float deltaTime)
         /* cartoony flash effect on ball */
         {
             Color cflash = ORANGE;
-            if (hq == 2) cflash = (Color){120, 220, 255, 255};
-            if (hq == 1) cflash = (Color){120, 255, 160, 255};
-            if (hq == 0) cflash = (Color){255, 200, 120, 255};
-            EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.0f, .timeLeft = 0.1f, .duration = 0.1f, .color = cflash, .source = 400 + hitter});
+            if (hq == 2) cflash = (Color){140, 230, 255, 255};
+            if (hq == 1) cflash = (Color){140, 255, 180, 255};
+            if (hq == 0) cflash = (Color){255, 215, 160, 255};
+            /* Stronger, longer ball hit flash (weightier contact). */
+            EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.0f, .timeLeft = 0.24f, .duration = 0.24f, .color = cflash, .source = 400 + hitter});
+            /* No longer push a separate WHITE ball trail effect (it was a no-op
+             * for the ball tint and added registry clutter). Instead, arm a
+             * dedicated contact flash/impact burst and a paddle flash. */
+            /* Arm a dedicated impact burst drawn in DrawEffects: an expanding
+             * ring + radial sparks at the contact point. */
+            game->hitFlashTimer = 0.26f;
+            game->hitFlashPos = game->ball.position;
+            game->hitFlashColor = (hq == 2) ? (Color){160, 245, 255, 255} : (hq == 1) ? (Color){160, 255, 210, 255} : (Color){255, 225, 180, 255};
+            /* Heavier paddle hit flash for "paddle hit flash". */
+            game->paddleFlash[hitter] = 0.24f;
+            /* Screen shake for weighty hits (good/perfect). Streak5 gets even
+             * bigger shake when applied. */
+            game->shakeTime = (hq == 2) ? 0.18f : 0.14f;
+            game->shakeDuration = (hq == 2) ? 0.18f : 0.14f;
+            game->shakeMagnitude = (hq == 2) ? 5.6f : 3.6f;
         }
         if (q == HIT_QUALITY_GOOD || q == HIT_QUALITY_PERFECT)
         {
@@ -268,22 +318,37 @@ static void updateGamePlay(Game *game, float deltaTime)
         {
             if (game->lastStreakApplied[p] < 5)
             {
-                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f, .timeLeft = 2.5f, .duration = 2.5f, .color = characters[game->selectedChar[p]].accent, .source = 100 + p});
-                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.5f, .timeLeft = 0.25f, .duration = 0.25f, .color = (Color){255, 255, 150, 255}, .source = 500 + p});
+                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f, .timeLeft = 3.5f, .duration = 3.5f, .color = characters[game->selectedChar[p]].accent, .source = 100 + p});
+                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.8f, .timeLeft = 0.8f, .duration = 0.8f, .color = (Color){255, 255, 200, 255}, .source = 500 + p});
+                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.6f, .timeLeft = 0.5f, .duration = 0.5f, .color = (Color){220, 240, 255, 255}, .source = 550 + p});
+                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.4f, .timeLeft = 0.7f, .duration = 0.7f, .color = WHITE, .source = 560 + p});
                 PlayStreak5(&game->sfx);
-                game->ball.speedFactor *= 1.12f;
-                if (game->ball.speedFactor > 2.5f)
-                    game->ball.speedFactor = 2.5f;
-                game->lastStreakApplied[p] = 5;
+                game->ball.speedFactor *= 1.15f;
+                if (game->ball.speedFactor > 2.6f)
+                    game->ball.speedFactor = 2.6f;
             }
-            game->streakEffectsActive[p] = true;
+            game->lastStreakApplied[p] = 5;
+            /* Bigger surge shake and longer, weightier ball flash on streak5. */
+            game->shakeTime = 0.26f;
+            game->shakeDuration = 0.26f;
+            game->shakeMagnitude = 6.5f;
+            game->hitFlashTimer = 0.28f;
+            game->hitFlashPos = game->ball.position;
+            game->hitFlashColor = WHITE;
+            /* also flash the hitter paddle a touch */
+            game->paddleFlash[p] = 0.26f;
         }
-        else if (s == 3)
+    }
+    /* Apply streak effects on thresholds: 3 hits -> trail, 5 -> faster (one-shot) */
+    for (int p = 0; p < 2; p++)
+    {
+        int s = game->playerStreak[p];
+        if (s >= 5)
         {
-            if (game->lastStreakApplied[p] < 3)
+            if (game->lastStreakApplied[p] < 5)
             {
-                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f, .timeLeft = 1.8f, .duration = 1.8f, .color = characters[game->selectedChar[p]].accent, .source = 100 + p});
-                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.5f, .timeLeft = 0.2f, .duration = 0.2f, .color = (Color){200, 220, 255, 255}, .source = 501 + p});
+                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 1.0f, .timeLeft = 2.0f, .duration = 2.0f, .color = characters[game->selectedChar[p]].accent, .source = 100 + p});
+                EffectsPush(&game->effects, (Effect){.active = true, .target = TARGET_BALL, .paddleIndex = -1, .stat = STAT_TRAIL, .op = OP_SET, .value = 0.5f, .timeLeft = 0.25f, .duration = 0.25f, .color = (Color){200, 220, 255, 255}, .source = 501 + p});
                 PlayStreak3(&game->sfx);
                 game->lastStreakApplied[p] = 3;
             }
@@ -338,39 +403,35 @@ static void updateGamePlay(Game *game, float deltaTime)
  *  - paddle aura + dash history echoes + defender shield barrier per paddle
  * Every pushed stat marker maps to a visible state here; nothing in the
  * registry is draw-only-dead (see self-review in the task report). */
-static void DrawEffects(const Effects *fx, const Ball *ball, const Paddle *p1, const Paddle *p2)
+static void DrawEffects(const Game *game)
 {
+    const Effects *fx = &game->effects;
+    const Ball *ball = &game->ball;
+    const Paddle *p1 = &game->paddle;
+    const Paddle *p2 = &game->player2Paddle;
+
     if (EffectTrailActive(fx, TARGET_BALL, -1))
     {
         TrailGhost ghosts[TRAIL_MAX_GHOSTS];
-        int n = TrailActiveGhosts(&ball->trail, TRAIL_MAX_GHOSTS, ghosts);
-        float r = ball->radius * ball->sizeMultiplier;
+        int n = TrailActiveGhosts(&game->ball.trail, TRAIL_MAX_GHOSTS, ghosts);
+        float r = game->ball.radius * game->ball.sizeMultiplier;
         for (int i = 0; i < n; i++)
         {
-            float a = 0.5f - 0.4f * (ghosts[i].age / TRAIL_MAX_AGE);
-            DrawGlowCircle(ghosts[i].pos, r, Fade(ball->color, a), 6.0f);
+            float a = 0.6f - 0.5f * (ghosts[i].age / TRAIL_MAX_AGE);
+            DrawGlowCircle(ghosts[i].pos, r, Fade(game->ball.color, a), 8.0f);
         }
     }
 
     Color ballTint = EffectTintColor(fx, TARGET_BALL, -1);
     if (ballTint.a > 0)
     {
-        DrawGlowCircle(ball->position, ball->radius * ball->sizeMultiplier + 2.0f,
+        DrawGlowCircle(game->ball.position, game->ball.radius * game->ball.sizeMultiplier + 2.0f,
                        Fade(ballTint, 0.4f), 8.0f);
     }
 
     for (int i = 0; i < 2; i++)
     {
         const Paddle *p = (i == 0) ? p1 : p2;
-
-        /* Accent aura border while any timed effect boosts this paddle. */
-        Color tint = EffectTintColor(fx, TARGET_PADDLE, i);
-        if (tint.a > 0)
-        {
-            Rectangle aura = {p->position.x - 4.0f, p->position.y - 4.0f,
-                              p->size.x + 8.0f, p->size.y + 8.0f};
-            DrawGlowRectLines(aura, 1.5f, tint, 6.0f);
-        }
 
         /* True afterimage: fading echoes at recorded positions — the paddle's own
          * footprint is always present (trail history starts at the pre-snap spot). */
@@ -381,9 +442,9 @@ static void DrawEffects(const Effects *fx, const Ball *ball, const Paddle *p1, c
             Color ghost = characters[p->charType].accent;
             for (int j = 0; j < n; j++)
             {
-                float a = 0.5f - 0.4f * (ghosts[j].age / TRAIL_MAX_AGE);
+                float a = 0.6f - 0.5f * (ghosts[j].age / TRAIL_MAX_AGE);
                 Rectangle g = {ghosts[j].pos.x, ghosts[j].pos.y, p->size.x, p->size.y};
-                DrawGlowRect(g, Fade(ghost, a), 4.0f);
+                DrawGlowRect(g, Fade(ghost, a), 6.0f);
             }
         }
 
@@ -399,11 +460,34 @@ static void DrawEffects(const Effects *fx, const Ball *ball, const Paddle *p1, c
 
         /* Speedster Afterburner: a charged outline while the power return is
          * armed, so the window is readable before the ball arrives. */
-        if (AfterburnerArmed(p))
-        {
-            Rectangle charge = {p->position.x - 2.0f, p->position.y - 2.0f,
-                                p->size.x + 4.0f, p->size.y + 4.0f};
-            DrawGlowRectLines(charge, 2.0f, characters[SPEEDSTER].accent, 8.0f);
+        /* Paddle hit flash: white overlay on contact. */
+        if (game->paddleFlash[i] > 0.0f) {
+            float pf = game->paddleFlash[i] / 0.26f;
+            if (pf < 0.0f) pf = 0.0f;
+            if (pf > 1.0f) pf = 1.0f;
+            Color cpf = Fade(WHITE, 0.50f * pf);
+            Rectangle pr = {p->position.x - 3.0f, p->position.y - 3.0f,
+                            p->size.x + 6.0f, p->size.y + 6.0f};
+            DrawGlowRect(pr, cpf, 5.0f);
+        }
+    }
+
+    /* Impact burst: expanding ring + small radial sparks. */
+    if (game->hitFlashTimer > 0.0f) {
+        float rem = game->hitFlashTimer / 0.28f;
+        if (rem > 1.0f) rem = 1.0f;
+        if (rem < 0.0f) rem = 0.0f;
+        float t = 1.0f - rem;
+        Color ic = game->hitFlashColor;
+        float r = (ball->radius * 2.0f + 28.0f) * t;
+        float a = 0.70f * rem;
+        DrawGlowCircle(game->hitFlashPos, r, Fade(ic, a), 8.0f);
+        const int sp = 8;
+        for (int s = 0; s < sp; s++) {
+            float ang = s * 2.0f * (3.141592653589793f) / sp;
+            Vector2 d = { cosf(ang), sinf(ang) };
+            Vector2 pp = { game->hitFlashPos.x + d.x * (r * 0.9f), game->hitFlashPos.y + d.y * (r * 0.9f) };
+            DrawCircleV(pp, 2.5f, Fade(WHITE, 0.50f * rem));
         }
     }
 }
@@ -500,7 +584,7 @@ static void DrawGameplay(const Game *game)
     DrawDecoys(&game->ball);
     DrawPaddle(game->paddle);
     DrawPaddle(game->player2Paddle);
-    DrawEffects(&game->effects, &game->ball, &game->paddle, &game->player2Paddle);
+    DrawEffects(game);
     PowerupPoolDraw(&game->powerups);
 }
 
@@ -642,4 +726,10 @@ void ResetGame(Game *game)
     game->hazardY = WINDOW_HEIGHT / 2.0f - game->hazardH / 2.0f;
     game->hazardVelY = (game->hazardVelY >= 0) ? 120.0f : -120.0f;
     game->hazardActive = false;
+    game->shakeTime = 0.0f;
+    game->shakeDuration = 0.0f;
+    game->shakeMagnitude = 0.0f;
+    game->hitFlashTimer = 0.0f;
+    game->paddleFlash[0] = 0.0f;
+    game->paddleFlash[1] = 0.0f;
 }

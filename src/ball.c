@@ -14,6 +14,7 @@
 #include "game.h"
 
 #include <math.h>
+#include <raylib.h>
 
 /* Extra margin added when pushing the ball clear of a paddle. Placing the ball
  * center exactly at face +/- radius is a tangent position, which raylib still
@@ -239,5 +240,33 @@ void UpdateBall(Ball* ball, Effects* fx, float deltaTime, int screenWidth, int s
 void DrawBall(const Ball* ball) {
     /* Trail ghosts are drawn by DrawEffects() from the STAT_TRAIL registry
      * marker (R22) — the old fakeBallActive/illusions clutter is gone. */
-    DrawGlowCircle(ball->position, ball->radius * ball->sizeMultiplier, ball->color, 8.0f);
+    /* Boost glow slightly with speed to improve readability and feel */
+    float speedGlow = 8.0f + (ball->speedFactor - 1.0f) * 6.0f;
+    if (speedGlow < 8.0f) speedGlow = 8.0f;
+    if (speedGlow > 18.0f) speedGlow = 18.0f;
+    DrawGlowCircle(ball->position, ball->radius * ball->sizeMultiplier, ball->color, speedGlow);
+    /* Stronger core outline for contrast (wider, brighter ring) */
+    float r = ball->radius * ball->sizeMultiplier;
+    DrawRing(ball->position, r - 2.0f, r + 2.0f, 0.0f, 360.0f, 32, WHITE);
+
+    /* Predictive "ahead" ghosts: faint echoes along the current heading so the
+     * ball's path is easier to read and catch. Purely visual; limited and
+     * cartoony (non-distracting). */
+    float vx = ball->velocity.x;
+    float vy = ball->velocity.y;
+    float speed = sqrtf(vx * vx + vy * vy);
+    if (speed > 10.0f) {
+        Vector2 dir = { vx / speed, vy / speed };
+        float lead[3] = { 0.06f, 0.12f, 0.20f };
+        for (int i = 0; i < 3; i++) {
+            float dist = speed * lead[i];
+            if (dist > 150.0f) break;
+            Vector2 p = { ball->position.x + dir.x * dist, ball->position.y + dir.y * dist };
+            float a = 0.22f - i * 0.05f;
+            if (a < 0.08f) a = 0.08f;
+            float size = r * (0.80f - i * 0.18f);
+            if (size < 3.5f) size = 3.5f;
+            DrawGlowCircle(p, size, Fade(ball->color, a), 4.0f);
+        }
+    }
 }
