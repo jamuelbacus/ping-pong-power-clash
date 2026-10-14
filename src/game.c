@@ -100,6 +100,7 @@ void InitGame(Game *game)
     game->player2Score = 0;
     game->gameState = MENU;
     game->currentSelectingPlayer = 0;
+    PlayMenuBgm(&game->sfx);
     game->selectedChar[0] = SPEEDSTER;
     game->selectedChar[1] = SPEEDSTER;
     EffectsInit(&game->effects);
@@ -542,11 +543,13 @@ void UpdateGame(Game *game, float deltaTime)
             Vector2 mousePos = GetVirtualMouse();
             if (CheckCollisionPointRec(mousePos, MENU_BTN_CPU))
             {
+                PlayMenuSelect(&game->sfx);
                 game->gameState = CHARACTER_SELECT;
                 game->player2Paddle.isCpu = true;
             }
             else if (CheckCollisionPointRec(mousePos, MENU_BTN_PVP))
             {
+                PlayMenuSelect(&game->sfx);
                 game->gameState = CHARACTER_SELECT;
                 game->player2Paddle.isCpu = false;
             }
@@ -566,6 +569,8 @@ void UpdateGame(Game *game, float deltaTime)
                     { // CPU mode
                         game->selectedChar[1] = GetRandomValue(0, CHARACTER_COUNT - 1);
                         game->player2Paddle.charType = game->selectedChar[1];
+                        PlayMenuConfirm(&game->sfx);
+                        PlayGameBgm(&game->sfx);
                         game->gameState = PLAY_CPU;
                     }
                     else
@@ -576,6 +581,8 @@ void UpdateGame(Game *game, float deltaTime)
                         }
                         else
                         {
+                            PlayMenuConfirm(&game->sfx);
+                            PlayGameBgm(&game->sfx);
                             game->gameState = PLAY_PVP;
                         }
                     }
@@ -590,6 +597,7 @@ void UpdateGame(Game *game, float deltaTime)
     {
         if (IsKeyPressed(KEY_SPACE))
         {
+            PlayMenuBgm(&game->sfx);
             game->gameState = MENU;
         }
         else if (IsKeyPressed(KEY_R))
@@ -630,6 +638,7 @@ void ResetGame(Game *game)
     EffectsClear(&game->effects);
     game->gameState = MENU;
     game->currentSelectingPlayer = 0;
+    PlayMenuBgm(&game->sfx);
     game->hazardY = WINDOW_HEIGHT / 2.0f - game->hazardH / 2.0f;
     game->hazardVelY = (game->hazardVelY >= 0) ? 120.0f : -120.0f;
     game->hazardActive = false;

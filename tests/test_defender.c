@@ -30,16 +30,16 @@ int main(void) {
     Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,DEFENDER);
 
     /* Shield Block arms a timed reflect window on the paddle itself. */
-    AbilitiesActivate(&fx, &b, &pad, 0, DEFENDER, 0);
+    AbilitiesActivate(&fx, &b, &pad, 0, DEFENDER, 0, NULL);
     CHECK(pad.shieldTimer > 0.0f, "shield is armed");
     CHECK(pad.shieldTimer == 5.0f, "shield arms for the full window");
 
     /* Wide Paddle: STAT_PADDLE_SIZE MUL 1.8, 4s, at the source paddle index. */
-    AbilitiesActivate(&fx, &b, &pad, 0, DEFENDER, 1);
+    AbilitiesActivate(&fx, &b, &pad, 0, DEFENDER, 1, NULL);
     CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SIZE, PADDLE_HEIGHT) == PADDLE_HEIGHT*1.8f, "wide paddle x1.8");
 
     /* Iron Fortress: full-height SET + immovable marker, 5s, at source index. */
-    AbilitiesActivate(&fx, &b, &pad, 0, DEFENDER, 2);
+    AbilitiesActivate(&fx, &b, &pad, 0, DEFENDER, 2, NULL);
     CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SIZE, PADDLE_HEIGHT) == FORTRESS_PADDLE_HEIGHT, "iron fortress full height");
     CHECK(EffectsHas(&fx, TARGET_PADDLE, 0, STAT_PADDLE_IMMOVABLE), "iron fortress marks the paddle immovable");
 
@@ -50,7 +50,7 @@ int main(void) {
     Ball cb; InitBall(&cb, 62, 250, BALL_SIZE, -BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle cpad; InitPaddle(&cpad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,DEFENDER);
     Paddle dummy2; InitPaddle(&dummy2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,DEFENDER);
-    AbilitiesActivate(&cfx, &cb, &cpad, 0, DEFENDER, 0);
+    AbilitiesActivate(&cfx, &cb, &cpad, 0, DEFENDER, 0, NULL);
     float pre = sqrtf(cb.baseVelocity.x * cb.baseVelocity.x + cb.baseVelocity.y * cb.baseVelocity.y);
     float preFactor = cb.speedFactor;
     UpdateBall(&cb, &cfx, 1.0f/60.0f, 960, 540, &cpad, &dummy2);
@@ -63,23 +63,23 @@ int main(void) {
     Effects wfx; EffectsInit(&wfx);
     Ball wb; InitBall(&wb, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle wpad; InitPaddle(&wpad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,DEFENDER);
-    AbilitiesActivate(&wfx, &wb, &wpad, 0, DEFENDER, 1);
-    UpdatePaddle(&wpad, &wfx, 0, 1.0f/60.0f, 540, &wb);
+    AbilitiesActivate(&wfx, &wb, &wpad, 0, DEFENDER, 1, NULL);
+    UpdatePaddle(&wpad, &wfx, 0, 1.0f/60.0f, 540, &wb, NULL);
     CHECK(wpad.size.y == PADDLE_HEIGHT * 1.8f, "wide paddle stretches through UpdatePaddle");
     EffectsUpdate(&wfx, 4.5f);
-    UpdatePaddle(&wpad, &wfx, 0, 1.0f/60.0f, 540, &wb);
+    UpdatePaddle(&wpad, &wfx, 0, 1.0f/60.0f, 540, &wb, NULL);
     CHECK(wpad.size.y == PADDLE_HEIGHT, "wide paddle expires back to normal height");
 
     /* --- R19: Iron Fortress drives immovable + full height via UpdatePaddle --- */
     Effects ffx; EffectsInit(&ffx);
     Ball fb; InitBall(&fb, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle fpad; InitPaddle(&fpad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,DEFENDER);
-    AbilitiesActivate(&ffx, &fb, &fpad, 0, DEFENDER, 2);
-    UpdatePaddle(&fpad, &ffx, 0, 1.0f/60.0f, 540, &fb);
+    AbilitiesActivate(&ffx, &fb, &fpad, 0, DEFENDER, 2, NULL);
+    UpdatePaddle(&fpad, &ffx, 0, 1.0f/60.0f, 540, &fb, NULL);
     CHECK(fpad.immovable == true, "iron fortress locks the paddle still");
     CHECK(fpad.size.y == FORTRESS_PADDLE_HEIGHT, "iron fortress stretches to full height");
     EffectsUpdate(&ffx, 5.5f);
-    UpdatePaddle(&fpad, &ffx, 0, 1.0f/60.0f, 540, &fb);
+    UpdatePaddle(&fpad, &ffx, 0, 1.0f/60.0f, 540, &fb, NULL);
     CHECK(fpad.immovable == false, "iron fortress releases the paddle");
     CHECK(fpad.size.y == PADDLE_HEIGHT, "iron fortress paddle returns to normal height");
 
@@ -87,10 +87,10 @@ int main(void) {
     Effects sfx; EffectsInit(&sfx);
     Ball sb; InitBall(&sb, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle spad; InitPaddle(&spad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,DEFENDER);
-    AbilitiesActivate(&sfx, &sb, &spad, 0, DEFENDER, 0);
-    UpdatePaddle(&spad, &sfx, 0, 1.0f/60.0f, 540, &sb);
+    AbilitiesActivate(&sfx, &sb, &spad, 0, DEFENDER, 0, NULL);
+    UpdatePaddle(&spad, &sfx, 0, 1.0f/60.0f, 540, &sb, NULL);
     CHECK(spad.shieldTimer < 5.0f, "shield window decays over time");
-    for (int i = 0; i < 320; i++) UpdatePaddle(&spad, &sfx, 0, 1.0f/60.0f, 540, &sb);
+    for (int i = 0; i < 320; i++) UpdatePaddle(&spad, &sfx, 0, 1.0f/60.0f, 540, &sb, NULL);
     CHECK(spad.shieldTimer == 0.0f, "shield window expires at zero");
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }

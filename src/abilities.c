@@ -125,7 +125,9 @@ void AbilitiesActivate(Effects* fx, Ball* ball, Paddle* paddle, int paddleIndex,
             break;
         default: break;
     }
-    if (sfx) PlaySkillCast(sfx);
+    if (sfx) {
+        PlaySkillCastFor(sfx, type, ability);
+    }
 }
 
 void CpuTickAbilities(Effects* fx, Ball* ball, Paddle* cpuPaddle, int paddleIndex, float dt, Sfx* sfx) {

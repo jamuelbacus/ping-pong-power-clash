@@ -51,12 +51,12 @@ int main(void) {
                  .stat = STAT_PADDLE_SPEED, .op = OP_MUL, .value = 2.0f,
                  .timeLeft = 4.0f, .duration = 4.0f, .color = BLUE, .source = 0 };
     EffectsPush(&fx, e);
-    UpdatePaddle(&p1, &fx, 0, 1.0f / 60.0f, 540, &b);
+    UpdatePaddle(&p1, &fx, 0, 1.0f / 60.0f, 540, &b, NULL);
     CHECK(p1.maxSpeed == 640.0f, "paddle speed x2");
 
     /* expiry restores base */
     EffectsUpdate(&fx, 4.5f);
-    UpdatePaddle(&p1, &fx, 0, 1.0f / 60.0f, 540, &b);
+    UpdatePaddle(&p1, &fx, 0, 1.0f / 60.0f, 540, &b, NULL);
     CHECK(p1.maxSpeed == 320.0f, "paddle speed restored after expiry");
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }

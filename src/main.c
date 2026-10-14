@@ -29,7 +29,7 @@
         PlayBgm(&game.sfx);
         while (!WindowShouldClose())
         {
-            UpdateMusicStream(game.sfx.bgm);
+            UpdateMusicStreams(&game.sfx);
             if (IsKeyPressed(KEY_F11)) ToggleFullscreen();
 
             float deltaTime = GetFrameTime();

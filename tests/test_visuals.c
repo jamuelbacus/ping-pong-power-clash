@@ -39,7 +39,7 @@ int main(void) {
     CHECK(!PlayerHasActiveEffect(&fx, 0), "no active effects for player 0");
 
     /* Time Slow pushes a ball-keyed STAT_BALL_SPEED owned by source 0. */
-    AbilitiesActivate(&fx, &b, &pad, 0, GRAND_WIZARD, 1);
+    AbilitiesActivate(&fx, &b, &pad, 0, GRAND_WIZARD, 1, NULL);
     CHECK(ColorEq(EffectTintColor(&fx, TARGET_BALL, -1), characters[GRAND_WIZARD].accent),
           "ball tint is the wizard accent");
     CHECK(PlayerHasActiveEffect(&fx, 0), "ball effect counted for its source (0)");
@@ -50,7 +50,7 @@ int main(void) {
 
     /* Dash Return pushes a paddle-keyed STAT_TRAIL (0.3s). */
     Effects fx2; EffectsInit(&fx2);
-    AbilitiesActivate(&fx2, &b, &pad, 0, SPEEDSTER, 0);
+    AbilitiesActivate(&fx2, &b, &pad, 0, SPEEDSTER, 0, NULL);
     CHECK(EffectTrailActive(&fx2, TARGET_PADDLE, 0), "dash trail active on paddle 0");
     CHECK(!EffectTrailActive(&fx2, TARGET_PADDLE, 1), "dash trail belongs to paddle 0 only");
     EffectsUpdate(&fx2, 0.5f);
@@ -58,24 +58,24 @@ int main(void) {
 
     /* Defender Shield Block arms the paddle's timed reflect window. */
     Effects fx3; EffectsInit(&fx3);
-    AbilitiesActivate(&fx3, &b, &pad, 0, DEFENDER, 0);
+    AbilitiesActivate(&fx3, &b, &pad, 0, DEFENDER, 0, NULL);
     CHECK(ShieldActive(&pad), "shield window armed");
     pad.shieldTimer = 1.0f;
-    UpdatePaddle(&pad, &fx3, 0, 1.5f, 540, &b);   /* real decay path, clamped to 0 */
+    UpdatePaddle(&pad, &fx3, 0, 1.5f, 540, &b, NULL);   /* real decay path, clamped to 0 */
     CHECK(!ShieldActive(&pad), "shield window expired/consumed");
 
     /* Speedster Afterburner arms a timed charge window on the paddle. */
     Effects fx4b; EffectsInit(&fx4b);
     Paddle apad; InitPaddle(&apad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
-    AbilitiesActivate(&fx4b, &b, &apad, 0, SPEEDSTER, 1);
+    AbilitiesActivate(&fx4b, &b, &apad, 0, SPEEDSTER, 1, NULL);
     CHECK(AfterburnerArmed(&apad), "afterburner window armed");
     apad.afterburnerTimer = 1.0f;
-    UpdatePaddle(&apad, &fx4b, 0, 1.5f, 540, &b);   /* real decay path, clamped to 0 */
+    UpdatePaddle(&apad, &fx4b, 0, 1.5f, 540, &b, NULL);   /* real decay path, clamped to 0 */
     CHECK(!AfterburnerArmed(&apad), "afterburner window expired/consumed");
 
     /* Iron Fortress tints the owning paddle with the defender accent. */
     Effects fx4; EffectsInit(&fx4);
-    AbilitiesActivate(&fx4, &b, &pad, 0, DEFENDER, 2);
+    AbilitiesActivate(&fx4, &b, &pad, 0, DEFENDER, 2, NULL);
     CHECK(ColorEq(EffectTintColor(&fx4, TARGET_PADDLE, 0), characters[DEFENDER].accent),
           "fortress paddle tint is defender accent");
     CHECK(EffectTintColor(&fx4, TARGET_PADDLE, 1).a == 0, "fortress tint is BLANK for the other paddle");

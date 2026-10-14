@@ -16,14 +16,14 @@ int main(void) {
      * commits exactly one cooldown, so at most one cooldown may be armed.
      * (A single ability may push more than one effect, so counting effect
      * entries would be wrong.) */
-    CpuTickAbilities(&fx, &b, &cpu, 1, 1.0f/60.0f);
+    CpuTickAbilities(&fx, &b, &cpu, 1, 1.0f/60.0f, NULL);
     int activated = (cpu.skill1Cooldown > 0.0f)
                   + (cpu.skill2Cooldown > 0.0f)
                   + (cpu.ultimateCooldown > 0.0f);
     CHECK(activated <= 1, "one decision tick fires at most one ability");
 
     /* Advancing a full decision interval keeps the timer bounded and non-negative. */
-    for (int i = 0; i < 120; i++) CpuTickAbilities(&fx, &b, &cpu, 1, 1.0f/60.0f);
+    for (int i = 0; i < 120; i++) CpuTickAbilities(&fx, &b, &cpu, 1, 1.0f/60.0f, NULL);
     CHECK(cpu.cpuDecisionTimer >= 0.0f, "decision timer never negative");
 
     if (fails) { printf("RESULT: FAIL\n"); return 1; }

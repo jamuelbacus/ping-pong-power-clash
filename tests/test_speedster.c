@@ -30,7 +30,7 @@ int main(void) {
     Ball b; InitBall(&b, 480, 400, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
 
-    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0);   /* Dash Return */
+    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0, NULL);   /* Dash Return */
     CHECK(pad.position.y == 400.0f - PADDLE_HEIGHT/2, "dash snaps paddle to ball Y");
     CHECK(EffectsHas(&fx, TARGET_PADDLE, 0, STAT_TRAIL), "dash arms a paddle trail marker");
     CHECK(EffectDurationOf(&fx, TARGET_PADDLE, 0, STAT_TRAIL) == 0.3f, "dash trail lasts 0.3s");
@@ -44,17 +44,17 @@ int main(void) {
             if (ghosts[i].pos.x == 50.0f && ghosts[i].pos.y == 200.0f) foundOrigin = true;
         CHECK(foundOrigin, "dash leaves a ghost at the pre-snap position (200)");
         /* A frame of UpdatePaddle with the trail marker live records the new spot. */
-        UpdatePaddle(&pad, &fx, 0, 0.1f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 0.1f, 540, &b, NULL);
         n = TrailActiveGhosts(&pad.trail, TRAIL_MAX_GHOSTS, ghosts);
         CHECK(n >= 2, "live dash trail records the destination on the next frame");
     }
 
-    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);   /* Afterburner */
+    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1, NULL);   /* Afterburner */
     CHECK(pad.afterburnerTimer == AFTERBURNER_WINDOW, "E arms the Afterburner window");
     CHECK(!EffectsHas(&fx, TARGET_PADDLE, 0, STAT_PADDLE_SPEED),
           "Afterburner no longer buffs paddle speed");
 
-    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 2);   /* Shadow Clone */
+    AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 2, NULL);   /* Shadow Clone */
     CHECK(DecoySwarmActiveCount(&b.decoys) == DECOY_SPAWN_COUNT,
           "ultimate spawns the Shadow Clone burst");
     CHECK(b.decoys.items[0].position.x == b.position.x && b.decoys.items[0].position.y == b.position.y,
@@ -69,7 +69,7 @@ int main(void) {
     Ball b2; InitBall(&b2, 480, 400, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle pad2; InitPaddle(&pad2, 890, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 250, GREEN, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
 
-    AbilitiesActivate(&fx2, &b2, &pad2, 1, SPEEDSTER, 2);   /* Shadow Clone from paddle index 1 */
+    AbilitiesActivate(&fx2, &b2, &pad2, 1, SPEEDSTER, 2, NULL);   /* Shadow Clone from paddle index 1 */
     CHECK(DecoySwarmActiveCount(&b2.decoys) == DECOY_SPAWN_COUNT,
           "Shadow Clone spawns for paddle index 1 too");
 
@@ -77,7 +77,7 @@ int main(void) {
     Effects fx3; EffectsInit(&fx3);
     Ball b3; InitBall(&b3, 480, 400, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
     Paddle wz; InitPaddle(&wz, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
-    AbilitiesActivate(&fx3, &b3, &wz, 0, GRAND_WIZARD, 2);
+    AbilitiesActivate(&fx3, &b3, &wz, 0, GRAND_WIZARD, 2, NULL);
     CHECK(DecoySwarmActiveCount(&b3.decoys) == 0, "non-Speedster ultimate never clones");
 
     /* --- Overdrive: heat model + Flow (Task 4) --- */
@@ -87,41 +87,41 @@ int main(void) {
         Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
 
         /* Rally: serve-speed ball -> heat 0 -> maxSpeed 320. */
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 319.99f && pad.maxSpeed < 320.01f, "serve-speed ball: heat 0, maxSpeed 320");
 
         /* Rally: fast ball (2x base) -> heat 1 -> 320 * 1.5 = 480. */
         b.velocity.x = 2.0f * BALL_SPEED_BASE; b.velocity.y = 0.0f;
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 479.9f && pad.maxSpeed <= 480.1f, "2x-speed ball: heat caps at 1 -> 480");
 
         /* Rally clamps from above and from below. */
         b.velocity.x = 2000.0f; b.velocity.y = 0.0f;
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 479.9f && pad.maxSpeed <= 480.1f, "extremely fast ball still caps at 480");
         b.velocity.x = 167.0f; b.velocity.y = 0.0f;
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 319.99f && pad.maxSpeed < 320.01f, "slow ball: rally floors at 0 -> 320");
 
         /* Flow: Q pushes +0.35 heat and trims E's cooldown. */
         pad.skill2Cooldown = SKILL2_COOLDOWN;                 /* 7s */
-        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0);    /* Dash Return */
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0, NULL);    /* Dash Return */
         CHECK(EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) > 0.3499f &&
               EffectsApply(&fx, TARGET_PADDLE, 0, STAT_PADDLE_HEAT, 0.0f) < 0.3501f,
               "Q arms 0.35 heat");
         CHECK(pad.skill2Cooldown == 6.0f, "Q trims E's cooldown by 1s");
         /* Heat at mid ball speed: 320 * (1 + 0.5*0.35) = 376. */
         b.velocity.x = BALL_SPEED_BASE; b.velocity.y = 0.0f;
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 375.9f && pad.maxSpeed < 376.1f, "heat 0.35 -> maxSpeed 376");
 
         /* E arms the same 0.35 heat (refresh) and trims Q. Afterburner no
          * longer touches paddle speed, so heat alone drives maxSpeed. */
         pad.skill1Cooldown = SKILL1_COOLDOWN;
-        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1);    /* Afterburner */
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 1, NULL);    /* Afterburner */
         CHECK(pad.skill1Cooldown == 4.0f, "E trims Q's cooldown by 1s");
         CHECK(pad.afterburnerTimer == AFTERBURNER_WINDOW, "E arms the Afterburner window");
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);       /* heat 0.35 -> 376 */
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);       /* heat 0.35 -> 376 */
         CHECK(pad.maxSpeed > 375.9f && pad.maxSpeed < 376.1f,
               "Afterburner leaves paddle speed to heat (376)");
 
@@ -139,14 +139,14 @@ int main(void) {
             .stat=STAT_PADDLE_HEAT, .op=OP_ADD, .value=OVERDRIVE_FLOW_HEAT,
             .timeLeft=OVERDRIVE_FLOW_DURATION, .duration=OVERDRIVE_FLOW_DURATION,
             .color=BLUE, .source=0 });
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 479.9f && pad.maxSpeed <= 480.1f, "rally+flow clamps at full heat (480, never 552)");
 
         /* Review focus 3: a sub-1s opposing cooldown trims to exactly 0, never
          * below. (E's own skill2 assignment only happens on ability 1, so this
          * Q trim on a 0.5s skill2 is clean.) */
         pad.skill2Cooldown = 0.5f;
-        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0);   /* Q trims skill2Cooldown */
+        AbilitiesActivate(&fx, &b, &pad, 0, SPEEDSTER, 0, NULL);   /* Q trims skill2Cooldown */
         CHECK(pad.skill2Cooldown == 0.0f, "flow trim clamps at 0, never negative");
     }
 
@@ -155,7 +155,7 @@ int main(void) {
         Effects fx; EffectsInit(&fx);
         Ball b; InitBall(&b, 480, 270, BALL_SIZE, 2.0f * BALL_SPEED_BASE, 0.0f, BALL_COLOR);
         Paddle pad; InitPaddle(&pad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
-        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&pad, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(pad.maxSpeed > 319.99f && pad.maxSpeed < 320.01f,
               "non-Speedster ignores heat entirely");
     }
@@ -177,7 +177,7 @@ int main(void) {
 
         /* Clutch heat must reach the consumer (Review Focus 6): OP_SET 1.0 -> maxSpeed 480. */
         b.velocity.x = -360.0f; b.velocity.y = 0.0f;   /* rally floor: heat is pure Clutch */
-        UpdatePaddle(&p1, &fx, 0, 1.0f/60.0f, 540, &b);
+        UpdatePaddle(&p1, &fx, 0, 1.0f/60.0f, 540, &b, NULL);
         CHECK(p1.maxSpeed > 479.9f && p1.maxSpeed <= 480.1f,
               "clutch heat reaches maxSpeed through UpdatePaddle (480)");
 
@@ -226,7 +226,7 @@ int main(void) {
         Paddle p1; InitPaddle(&p1, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
         Paddle p2; InitPaddle(&p2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
 
-        AbilitiesActivate(&fx, &b, &p1, 0, SPEEDSTER, 1);   /* arm */
+        AbilitiesActivate(&fx, &b, &p1, 0, SPEEDSTER, 1, NULL);   /* arm */
         CHECK(p1.afterburnerTimer == AFTERBURNER_WINDOW, "E arms the Afterburner window");
         float pre = sqrtf(b.baseVelocity.x * b.baseVelocity.x + b.baseVelocity.y * b.baseVelocity.y);
         float preFactor = b.speedFactor;
@@ -251,7 +251,7 @@ int main(void) {
         Ball cb; InitBall(&cb, 62, 250, BALL_SIZE, -721.1102f, 0.0f, BALL_COLOR);
         Paddle c1; InitPaddle(&c1, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
         Paddle c2; InitPaddle(&c2, 890, 250, PADDLE_WIDTH, PADDLE_HEIGHT, 300, RED, true, 4000,320,0.9f,KEY_UP,KEY_DOWN,SPEEDSTER);
-        AbilitiesActivate(&cfx, &cb, &c1, 0, SPEEDSTER, 1);
+        AbilitiesActivate(&cfx, &cb, &c1, 0, SPEEDSTER, 1, NULL);
         UpdateBall(&cb, &cfx, 1.0f/60.0f, 960, 540, &c1, &c2);
         float capped = sqrtf(cb.baseVelocity.x * cb.baseVelocity.x + cb.baseVelocity.y * cb.baseVelocity.y);
         CHECK(capped <= BALL_MAX_VELOCITY + 0.01f, "charged return never exceeds BALL_MAX_VELOCITY");
@@ -260,16 +260,16 @@ int main(void) {
         Effects dfx; EffectsInit(&dfx);
         Ball db; InitBall(&db, 480, 270, BALL_SIZE, BALL_BASE_VELOCITY_X, BALL_BASE_VELOCITY_Y, BALL_COLOR);
         Paddle dpad; InitPaddle(&dpad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,SPEEDSTER);
-        AbilitiesActivate(&dfx, &db, &dpad, 0, SPEEDSTER, 1);
-        UpdatePaddle(&dpad, &dfx, 0, 1.0f/60.0f, 540, &db);
+        AbilitiesActivate(&dfx, &db, &dpad, 0, SPEEDSTER, 1, NULL);
+        UpdatePaddle(&dpad, &dfx, 0, 1.0f/60.0f, 540, &db, NULL);
         CHECK(dpad.afterburnerTimer < AFTERBURNER_WINDOW, "Afterburner window decays over time");
-        for (int i = 0; i < 200; i++) UpdatePaddle(&dpad, &dfx, 0, 1.0f/60.0f, 540, &db);
+        for (int i = 0; i < 200; i++) UpdatePaddle(&dpad, &dfx, 0, 1.0f/60.0f, 540, &db, NULL);
         CHECK(dpad.afterburnerTimer == 0.0f, "Afterburner window expires at zero");
 
         /* Only the Speedster ever arms the window. */
         Effects nfx; EffectsInit(&nfx);
         Paddle npad; InitPaddle(&npad, 50, 200, PADDLE_WIDTH, PADDLE_HEIGHT, 300, BLUE, false, 4000,320,0.9f,KEY_W,KEY_S,GRAND_WIZARD);
-        AbilitiesActivate(&nfx, &db, &npad, 0, GRAND_WIZARD, 1);   /* Time Slow */
+        AbilitiesActivate(&nfx, &db, &npad, 0, GRAND_WIZARD, 1, NULL);   /* Time Slow */
         CHECK(npad.afterburnerTimer == 0.0f, "non-Speedster never arms the Afterburner window");
     }
 
